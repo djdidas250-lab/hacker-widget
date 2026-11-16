@@ -44,13 +44,18 @@ jobs:
 
               if marker not in command:
                   print("Running original source step:", step.get("name", "setup"))
-                  subprocess.run(["bash", "-e", "-o", "pipefail", "-c", command], check=True)
+                  subprocess.run(
+                      ["bash", "-e", "-o", "pipefail", "-c", command],
+                      check=True
+                  )
                   continue
 
               prefix, suffix = command.split(marker, 1)
-
               print("Generating original app sources...")
-              subprocess.run(["bash", "-e", "-o", "pipefail", "-c", prefix], check=True)
+              subprocess.run(
+                  ["bash", "-e", "-o", "pipefail", "-c", prefix],
+                  check=True
+              )
 
               settings = Path("settings.gradle")
               if not settings.exists():
@@ -69,49 +74,63 @@ jobs:
 
               print("Gradle Plugin Portal enabled.")
 
-              # Make the OUTER widget background translucent.
-              # Keep the original green border layers intact.
+              # Slightly translucent OUTER widget background.
+              # The green border layers remain intact.
               for drawable in ["bg.xml", "bg_off.xml"]:
                   path = Path("app/src/main/res/drawable") / drawable
                   if not path.exists():
                       raise SystemExit(f"ERROR: Missing {drawable}")
+
                   content = path.read_text()
                   if "#FA010401" not in content:
-                      raise SystemExit(f"ERROR: Original background color not found in {drawable}")
+                      raise SystemExit(
+                          f"ERROR: Original background color not found in {drawable}"
+                      )
+
                   path.write_text(content.replace("#FA010401", "#C0010401"))
 
               # Keep the alarm shortcut.
               manifest = Path("app/src/main/AndroidManifest.xml")
               mx = manifest.read_text()
               perm = '<uses-permission android:name="com.android.alarm.permission.SET_ALARM"/>'
+
               if perm not in mx:
                   mx = mx.replace('<application', perm + '<application', 1)
                   manifest.write_text(mx)
 
-              provider = Path("app/src/main/java/com/example/hackerwidget/ClockWeatherProvider.kt")
+              provider = Path(
+                  "app/src/main/java/com/example/hackerwidget/ClockWeatherProvider.kt"
+              )
               src = provider.read_text()
 
               anchor = 'private fun tapPi(c:Context):PendingIntent{'
-              helper = ('private fun alarmPi(c:Context):PendingIntent{' \
-                'val i=Intent(android.provider.AlarmClock.ACTION_SET_ALARM).apply{' \
-                'flags=Intent.FLAG_ACTIVITY_NEW_TASK};' \
-                'val f=PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE;' \
-                'return if(Build.VERSION.SDK_INT>=34){' \
-                'val o=ActivityOptions.makeBasic().setPendingIntentBackgroundActivityStartMode(' \
-                'ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOWED);' \
-                'PendingIntent.getActivity(c,96,i,f,o.toBundle())' \
-                '}else PendingIntent.getActivity(c,96,i,f)}\n')
+              helper = (
+                  'private fun alarmPi(c:Context):PendingIntent{' \
+                  'val i=Intent(android.provider.AlarmClock.ACTION_SET_ALARM).apply{' \
+                  'flags=Intent.FLAG_ACTIVITY_NEW_TASK};' \
+                  'val f=PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE;' \
+                  'return if(Build.VERSION.SDK_INT>=34){' \
+                  'val o=ActivityOptions.makeBasic().setPendingIntentBackgroundActivityStartMode(' \
+                  'ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOWED);' \
+                  'PendingIntent.getActivity(c,96,i,f,o.toBundle())' \
+                  '}else PendingIntent.getActivity(c,96,i,f)}\n'
+              )
 
               if 'private fun alarmPi(c:Context)' not in src:
                   if anchor not in src:
                       raise SystemExit("ERROR: Could not find alarm insertion point")
                   src = src.replace(anchor, helper + anchor, 1)
 
-              old_click = ('v.setOnClickPendingIntent(R.id.gear_w,cfgPi(c));'
-                           'v.setOnClickPendingIntent(R.id.cw_root,tapPi(c));')
-              new_click = ('v.setOnClickPendingIntent(R.id.gear_w,cfgPi(c));'
-                           'v.setOnClickPendingIntent(R.id.w_time,alarmPi(c));'
-                           'v.setOnClickPendingIntent(R.id.cw_root,tapPi(c));')
+              old_click = (
+                  'v.setOnClickPendingIntent(R.id.gear_w,cfgPi(c));'
+                  'v.setOnClickPendingIntent(R.id.cw_root,tapPi(c));'
+              )
+
+              new_click = (
+                  'v.setOnClickPendingIntent(R.id.gear_w,cfgPi(c));'
+                  'v.setOnClickPendingIntent(R.id.w_time,alarmPi(c));'
+                  'v.setOnClickPendingIntent(R.id.cw_root,tapPi(c));'
+              )
 
               if old_click in src:
                   src = src.replace(old_click, new_click, 1)
@@ -123,43 +142,45 @@ jobs:
               ns = 'xmlns:android="http://schemas.android.com/apk/res/android"'
 
               def panel(title, body, gravity):
-                  return f'''<FrameLayout android:layout_width="match_parent" android:layout_height="match_parent" android:clipChildren="true" android:clipToPadding="true">
-                    <LinearLayout android:layout_width="124dp" android:layout_height="wrap_content" android:layout_gravity="{gravity}" android:layout_margin="6dp" android:orientation="vertical" android:padding="3dp" android:background="@drawable/terminal_panel">
-                      <TextView android:layout_width="match_parent" android:layout_height="15dp" android:gravity="center_vertical" android:paddingStart="4dp" android:background="@drawable/terminal_header" android:text="{title}" android:textColor="#001A08" android:textStyle="bold" android:textSize="7sp" android:fontFamily="monospace" />
-                      <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:padding="3dp" android:text="{body}" android:textColor="#00FF41" android:textSize="7sp" android:maxLines="3" android:fontFamily="monospace" />
-                      <ProgressBar style="?android:attr/progressBarStyleHorizontal" android:layout_width="match_parent" android:layout_height="3dp" android:indeterminate="true" android:indeterminateTint="#00FF41" android:indeterminateTintMode="src_in" />
-                    </LinearLayout>
-                  </FrameLayout>'''
+                  return f'''<LinearLayout
+                    android:layout_width="124dp"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="{gravity}"
+                    android:layout_margin="6dp"
+                    android:orientation="vertical"
+                    android:padding="3dp"
+                    android:background="@drawable/terminal_panel">
 
-              def flipper(fid, interval, groups, repeats):
-                  positions = [
-                      'top|start', 'top|end', 'center',
-                      'bottom|start', 'bottom|end',
-                      'center_vertical|start', 'center_vertical|end'
-                  ]
-                  children = [
-                      '<FrameLayout android:layout_width="match_parent" android:layout_height="match_parent" android:clipChildren="true" android:clipToPadding="true" />'
-                  ]
+                    <TextView
+                      android:layout_width="match_parent"
+                      android:layout_height="15dp"
+                      android:gravity="center_vertical"
+                      android:paddingStart="4dp"
+                      android:background="@drawable/terminal_header"
+                      android:text="{title}"
+                      android:textColor="#001A08"
+                      android:textStyle="bold"
+                      android:textSize="7sp"
+                      android:fontFamily="monospace" />
 
-                  for title, body in groups:
-                      gravity = random.choice(positions)
-                      for _ in range(repeats):
-                          children.append(panel(title, body, gravity))
-                      children.append(
-                          '<FrameLayout android:layout_width="match_parent" android:layout_height="match_parent" android:clipChildren="true" android:clipToPadding="true" />'
-                      )
+                    <TextView
+                      android:layout_width="match_parent"
+                      android:layout_height="wrap_content"
+                      android:padding="3dp"
+                      android:text="{body}"
+                      android:textColor="#00FF41"
+                      android:textSize="7sp"
+                      android:maxLines="3"
+                      android:fontFamily="monospace" />
 
-                  return (
-                      f'<ViewFlipper android:id="@+id/{fid}" '
-                      f'android:layout_width="match_parent" '
-                      f'android:layout_height="match_parent" '
-                      f'android:autoStart="true" android:clipChildren="true" '
-                      f'android:clipToPadding="true" android:flipInterval="{interval}" '
-                      f'android:inAnimation="@anim/panel_in" '
-                      f'android:outAnimation="@anim/panel_out">'
-                      + ''.join(children) +
-                      '</ViewFlipper>'
-                  )
+                    <ProgressBar
+                      style="?android:attr/progressBarStyleHorizontal"
+                      android:layout_width="match_parent"
+                      android:layout_height="3dp"
+                      android:indeterminate="true"
+                      android:indeterminateTint="#00FF41"
+                      android:indeterminateTintMode="src_in" />
+                  </LinearLayout>'''
 
               short_entries = [
                   ("AUTH / SCAN", "[+] scanning ports\\nnode: 10.0.4.21\\ntrace route: active"),
@@ -178,44 +199,203 @@ jobs:
                   ("NETWORK / TRACE", "route mapped: 8 hops\\nproxy chain active\\nconnection stable"),
               ]
 
-              content = flipper('short_windows', 2200, short_entries, 3)
-              content += flipper('medium_windows', 2450, medium_entries, 5)
-              content += flipper('long_windows', 2850, long_entries, 8)
+              # Every pop-up is placed inside the middle content area.
+              # The header, spinning icon, footer, and outer border are
+              # separate from this area and cannot be covered by these panels.
+              #
+              # These positions spread panels around the usable area.
+              positions = [
+                  "top|start",
+                  "top|end",
+                  "center_vertical|start",
+                  "center_vertical|end",
+                  "bottom|start",
+                  "bottom|end",
+              ]
+
+              # Two-window combinations are staggered rather than
+              # directly beside each other or directly one above another.
+              spread_pairs = [
+                  ("top|start", "center_vertical|end"),
+                  ("top|end", "center_vertical|start"),
+                  ("center_vertical|start", "bottom|end"),
+                  ("center_vertical|end", "bottom|start"),
+                  ("top|start", "bottom|end"),
+                  ("top|end", "bottom|start"),
+              ]
+
+              def make_scene(entries):
+                  frame = [
+                      '<FrameLayout '
+                      'android:layout_width="match_parent" '
+                      'android:layout_height="match_parent" '
+                      'android:clipChildren="true" '
+                      'android:clipToPadding="true">'
+                  ]
+
+                  count = random.choices([1, 2], weights=[4, 6])[0]
+                  selected_entries = random.sample(entries, count)
+
+                  if count == 1:
+                      chosen = [random.choice(positions)]
+                  else:
+                      chosen = list(random.choice(spread_pairs))
+
+                  random.shuffle(chosen)
+
+                  for (title, body), gravity in zip(selected_entries, chosen):
+                      frame.append(panel(title, body, gravity))
+
+                  frame.append("</FrameLayout>")
+                  return "".join(frame)
+
+              # One shared flipper prevents separate layers of pop-ups
+              # from unexpectedly covering one another.
+              all_entries = short_entries + medium_entries + long_entries
+              scenes = []
+
+              for _ in range(30):
+                  scenes.append(make_scene(all_entries))
+
+              content = (
+                  '<ViewFlipper '
+                  'android:id="@+id/terminal_windows" '
+                  'android:layout_width="match_parent" '
+                  'android:layout_height="match_parent" '
+                  'android:autoStart="true" '
+                  'android:clipChildren="true" '
+                  'android:clipToPadding="true" '
+                  'android:flipInterval="2400" '
+                  'android:inAnimation="@anim/panel_in" '
+                  'android:outAnimation="@anim/panel_out">'
+                  + "".join(scenes) +
+                  '</ViewFlipper>'
+              )
 
               layout = f'''<?xml version="1.0" encoding="utf-8"?>
-              <LinearLayout {ns} android:id="@+id/root" android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:padding="9dp" android:background="@drawable/bg">
-                <LinearLayout android:layout_width="match_parent" android:layout_height="25dp" android:gravity="center_vertical" android:orientation="horizontal">
-                  <ProgressBar android:layout_width="17dp" android:layout_height="17dp" android:layout_marginStart="6dp" android:layout_marginTop="3dp" android:indeterminate="true" android:indeterminateDrawable="@drawable/ring" />
-                  <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginStart="6dp" android:text="MATRIX // LIVE PROCESSES" android:textColor="#FFFFFF" android:textStyle="bold" android:textSize="9sp" android:fontFamily="monospace" />
-                  <TextView android:id="@+id/gear_t" android:layout_width="wrap_content" android:layout_height="wrap_content" android:paddingStart="5dp" android:text="⚙" android:textColor="#8800FF41" android:textSize="13sp" />
+              <LinearLayout {ns}
+                android:id="@+id/root"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:orientation="vertical"
+                android:padding="9dp"
+                android:background="@drawable/bg">
+
+                <!-- Protected top header and spinning icon -->
+                <LinearLayout
+                  android:layout_width="match_parent"
+                  android:layout_height="25dp"
+                  android:gravity="center_vertical"
+                  android:orientation="horizontal">
+
+                  <ProgressBar
+                    android:layout_width="17dp"
+                    android:layout_height="17dp"
+                    android:layout_marginStart="6dp"
+                    android:layout_marginTop="3dp"
+                    android:indeterminate="true"
+                    android:indeterminateDrawable="@drawable/ring" />
+
+                  <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginStart="6dp"
+                    android:text="MATRIX // LIVE PROCESSES"
+                    android:textColor="#FFFFFF"
+                    android:textStyle="bold"
+                    android:textSize="9sp"
+                    android:fontFamily="monospace" />
+
+                  <TextView
+                    android:id="@+id/gear_t"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:paddingStart="5dp"
+                    android:text="⚙"
+                    android:textColor="#8800FF41"
+                    android:textSize="13sp" />
                 </LinearLayout>
-                <FrameLayout android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:padding="5dp" android:clipChildren="true" android:clipToPadding="true">
+
+                <!-- Pop-ups are restricted to this middle area only -->
+                <FrameLayout
+                  android:layout_width="match_parent"
+                  android:layout_height="0dp"
+                  android:layout_weight="1"
+                  android:padding="5dp"
+                  android:clipChildren="true"
+                  android:clipToPadding="true">
+
                   {content}
+
                 </FrameLayout>
-                <LinearLayout android:id="@+id/foot" android:layout_width="match_parent" android:layout_height="13dp" android:layout_marginBottom="2dp" android:paddingStart="6dp" android:gravity="center_vertical" android:orientation="horizontal">
-                  <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="[ " android:textColor="#00FF41" android:textSize="7sp" android:fontFamily="monospace" />
-                  <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="LIVE" android:textColor="#FFFFFF" android:textSize="7sp" android:fontFamily="monospace" />
-                  <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text=" ] independent processes // encrypted channel" android:textColor="#00FF41" android:textSize="7sp" android:fontFamily="monospace" />
+
+                <!-- Protected bottom information area -->
+                <LinearLayout
+                  android:id="@+id/foot"
+                  android:layout_width="match_parent"
+                  android:layout_height="13dp"
+                  android:layout_marginBottom="2dp"
+                  android:paddingStart="6dp"
+                  android:gravity="center_vertical"
+                  android:orientation="horizontal">
+
+                  <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="[ "
+                    android:textColor="#00FF41"
+                    android:textSize="7sp"
+                    android:fontFamily="monospace" />
+
+                  <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="LIVE"
+                    android:textColor="#FFFFFF"
+                    android:textSize="7sp"
+                    android:fontFamily="monospace" />
+
+                  <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text=" ] independent processes // encrypted channel"
+                    android:textColor="#00FF41"
+                    android:textSize="7sp"
+                    android:fontFamily="monospace" />
                 </LinearLayout>
+
               </LinearLayout>'''
 
-              Path('app/src/main/res/layout/widget.xml').write_text(layout)
+              Path("app/src/main/res/layout/widget.xml").write_text(layout)
 
-              # Pop-up terminal windows remain opaque.
-              Path('app/src/main/res/drawable/terminal_panel.xml').write_text(
-                  f'''<shape {ns} android:shape="rectangle"><solid android:color="#F5020804"/><stroke android:width="1dp" android:color="#00FF41"/><corners android:radius="2dp"/></shape>'''
+              # Pop-up terminal windows stay dark and opaque.
+              Path("app/src/main/res/drawable/terminal_panel.xml").write_text(
+                  f'''<shape {ns} android:shape="rectangle">
+                    <solid android:color="#F5020804"/>
+                    <stroke android:width="1dp" android:color="#00FF41"/>
+                    <corners android:radius="2dp"/>
+                  </shape>'''
               )
 
-              Path('app/src/main/res/drawable/terminal_header.xml').write_text(
-                  f'''<shape {ns} android:shape="rectangle"><solid android:color="#E8FFF0"/></shape>'''
+              Path("app/src/main/res/drawable/terminal_header.xml").write_text(
+                  f'''<shape {ns} android:shape="rectangle">
+                    <solid android:color="#E8FFF0"/>
+                  </shape>'''
               )
 
-              Path('app/src/main/res/anim/panel_in.xml').write_text(
-                  f'''<set {ns} android:duration="320"><alpha android:fromAlpha="0.0" android:toAlpha="1.0"/><translate android:fromYDelta="8%" android:toYDelta="0%"/></set>'''
+              Path("app/src/main/res/anim/panel_in.xml").write_text(
+                  f'''<set {ns} android:duration="320">
+                    <alpha android:fromAlpha="0.0" android:toAlpha="1.0"/>
+                    <translate android:fromYDelta="8%" android:toYDelta="0%"/>
+                  </set>'''
               )
 
-              Path('app/src/main/res/anim/panel_out.xml').write_text(
-                  f'''<set {ns} android:duration="260"><alpha android:fromAlpha="1.0" android:toAlpha="0.0"/><translate android:fromYDelta="0%" android:toYDelta="-5%"/></set>'''
+              Path("app/src/main/res/anim/panel_out.xml").write_text(
+                  f'''<set {ns} android:duration="260">
+                    <alpha android:fromAlpha="1.0" android:toAlpha="0.0"/>
+                    <translate android:fromYDelta="0%" android:toYDelta="-5%"/>
+                  </set>'''
               )
 
               kotlin = r'''
@@ -227,28 +407,62 @@ jobs:
               import android.widget.RemoteViews
 
               class HackerWidgetProvider : AppWidgetProvider() {
-                  override fun onUpdate(context: Context, manager: AppWidgetManager, ids: IntArray) {
-                      val prefs = context.getSharedPreferences("cw_cache", Context.MODE_PRIVATE)
+                  override fun onUpdate(
+                      context: Context,
+                      manager: AppWidgetManager,
+                      ids: IntArray
+                  ) {
+                      val prefs = context.getSharedPreferences(
+                          "cw_cache",
+                          Context.MODE_PRIVATE
+                      )
                       val border = prefs.getBoolean("border_term", true)
                       val gear = prefs.getBoolean("show_gear", true)
 
                       for (id in ids) {
-                          val views = RemoteViews(context.packageName, R.layout.widget)
-                          views.setInt(R.id.root, "setBackgroundResource", if (border) R.drawable.bg else R.drawable.bg_off)
-                          views.setViewVisibility(R.id.gear_t, if (gear) View.VISIBLE else View.GONE)
-                          views.setOnClickPendingIntent(R.id.gear_t, ClockWeatherProvider.cfgPi(context))
-                          views.setDisplayedChild(R.id.short_windows, kotlin.random.Random.nextInt(0, 9))
-                          views.setDisplayedChild(R.id.medium_windows, kotlin.random.Random.nextInt(0, 19))
-                          views.setDisplayedChild(R.id.long_windows, kotlin.random.Random.nextInt(0, 28))
+                          val views = RemoteViews(
+                              context.packageName,
+                              R.layout.widget
+                          )
 
-                          val refresh = Intent(context, HackerWidgetProvider::class.java).apply {
+                          views.setInt(
+                              R.id.root,
+                              "setBackgroundResource",
+                              if (border) R.drawable.bg else R.drawable.bg_off
+                          )
+
+                          views.setViewVisibility(
+                              R.id.gear_t,
+                              if (gear) View.VISIBLE else View.GONE
+                          )
+
+                          views.setOnClickPendingIntent(
+                              R.id.gear_t,
+                              ClockWeatherProvider.cfgPi(context)
+                          )
+
+                          views.setDisplayedChild(
+                              R.id.terminal_windows,
+                              kotlin.random.Random.nextInt(0, 30)
+                          )
+
+                          val refresh = Intent(
+                              context,
+                              HackerWidgetProvider::class.java
+                          ).apply {
                               action = AppWidgetManager.ACTION_APPWIDGET_UPDATE
-                              putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, intArrayOf(id))
+                              putExtra(
+                                  AppWidgetManager.EXTRA_APPWIDGET_IDS,
+                                  intArrayOf(id)
+                              )
                           }
 
                           val pi = PendingIntent.getBroadcast(
-                              context, id, refresh,
-                              PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                              context,
+                              id,
+                              refresh,
+                              PendingIntent.FLAG_UPDATE_CURRENT or
+                                  PendingIntent.FLAG_IMMUTABLE
                           )
 
                           views.setOnClickPendingIntent(R.id.root, pi)
@@ -258,12 +472,16 @@ jobs:
               }
               '''
 
-              Path('app/src/main/java/com/example/hackerwidget/HackerWidgetProvider.kt').write_text(
-                  textwrap.dedent(kotlin)
-              )
+              Path(
+                  "app/src/main/java/com/example/hackerwidget/HackerWidgetProvider.kt"
+              ).write_text(textwrap.dedent(kotlin))
 
               print("Building Matrix widget...")
-              subprocess.run(["bash", "-e", "-o", "pipefail", "-c", marker + suffix], check=True)
+              subprocess.run(
+                  ["bash", "-e", "-o", "pipefail", "-c", marker + suffix],
+                  check=True
+              )
+
               found_build = True
 
           if not found_build:
