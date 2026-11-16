@@ -24,7 +24,6 @@ jobs:
           python3 - <<'PY'
           import subprocess, urllib.request, yaml, textwrap, random
           from pathlib import Path
-
           base_url = "https://raw.githubusercontent.com/djdidas250-lab/hacker-widget/0ad3901/.github/workflows/build.yml"
           marker = "gradle wrapper --gradle-version 8.5 && chmod +x gradlew && ./gradlew assembleDebug --no-daemon"
           print("Downloading the original verified app source...")
@@ -32,7 +31,6 @@ jobs:
           base = yaml.safe_load(raw)
           steps = base["jobs"]["build"]["steps"]
           found_build = False
-
           for step in steps:
               command = step.get("run")
               if not command:
@@ -41,13 +39,9 @@ jobs:
                   print("Running original source step:", step.get("name", "setup"))
                   subprocess.run(["bash", "-e", "-o", "pipefail", "-c", command], check=True)
                   continue
-
               prefix, suffix = command.split(marker, 1)
               print("Generating original clock, weather, settings, and app sources...")
               subprocess.run(["bash", "-e", "-o", "pipefail", "-c", prefix], check=True)
-
-              # Fix plugin resolution: Kotlin's Gradle plugin marker is available
-              # through the Gradle Plugin Portal, which the original settings omitted.
               settings = Path("settings.gradle")
               if not settings.exists():
                   raise SystemExit("ERROR: settings.gradle was not generated")
@@ -61,15 +55,12 @@ jobs:
               if "gradlePluginPortal()" not in settings.read_text():
                   raise SystemExit("ERROR: Could not add Gradle Plugin Portal to pluginManagement repositories")
               print("Gradle Plugin Portal enabled for Kotlin plugin resolution.")
-
-              # Restore the same alarm shortcut that was present in successful build #52.
               manifest = Path("app/src/main/AndroidManifest.xml")
               mx = manifest.read_text()
               perm = '<uses-permission android:name="com.android.alarm.permission.SET_ALARM"/>'
               if perm not in mx:
                   mx = mx.replace('<application', perm + '<application', 1)
                   manifest.write_text(mx)
-
               provider = Path("app/src/main/java/com/example/hackerwidget/ClockWeatherProvider.kt")
               src = provider.read_text()
               anchor = 'private fun tapPi(c:Context):PendingIntent{'
@@ -96,10 +87,6 @@ jobs:
               elif new_click not in src:
                   raise SystemExit("ERROR: Could not find clock click insertion point")
               provider.write_text(src)
-
-              # Three independent ViewFlippers run locally inside the home-screen widget.
-              # Each cycles through one blank state and multiple live panel states. Different
-              # intervals and panel counts create short, medium, and long independent lifetimes.
               ns = 'xmlns:android="http://schemas.android.com/apk/res/android"'
               def panel(title, body, gravity, margin):
                   return f'''<FrameLayout android:layout_width="match_parent" android:layout_height="match_parent" android:clipChildren="true" android:clipToPadding="true">
@@ -109,7 +96,6 @@ jobs:
                       <ProgressBar style="?android:attr/progressBarStyleHorizontal" android:layout_width="match_parent" android:layout_height="3dp" android:indeterminate="true" android:indeterminateTint="#00FF41" android:indeterminateTintMode="src_in" />
                     </LinearLayout>
                   </FrameLayout>'''
-
               def flipper(fid, interval, margin, groups, repeats):
                   positions = ['top|start', 'top|end', 'center', 'bottom|start', 'bottom|end', 'center_vertical|start', 'center_vertical|end']
                   children = ['<FrameLayout android:layout_width="match_parent" android:layout_height="match_parent" android:clipChildren="true" android:clipToPadding="true" />']
@@ -122,7 +108,6 @@ jobs:
                           f'android:layout_height="match_parent" android:autoStart="true" android:clipChildren="true" android:clipToPadding="true" '
                           f'android:flipInterval="{interval}" android:inAnimation="@anim/panel_in" '
                           f'android:outAnimation="@anim/panel_out">' + ''.join(children) + '</ViewFlipper>')
-
               short_entries = [
                 ("AUTH / SCAN", "[+] scanning ports\\nnode: 10.0.4.21\\ntrace route: active"),
                 ("KERNEL TASK", "injecting module...\\nchecksum verified\\nprogress sequence: 42%"),
@@ -140,7 +125,6 @@ jobs:
               content = flipper('short_windows', 2200, '3dp', short_entries, 3)
               content += flipper('medium_windows', 2450, '0dp', medium_entries, 5)
               content += flipper('long_windows', 2850, '3dp', long_entries, 8)
-
               layout = f'''<?xml version="1.0" encoding="utf-8"?>
               <LinearLayout {ns} android:id="@+id/root" android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:padding="9dp" android:background="@drawable/bg">
                 <LinearLayout android:layout_width="match_parent" android:layout_height="23dp" android:gravity="center_vertical" android:orientation="horizontal">
@@ -151,15 +135,17 @@ jobs:
                 <FrameLayout android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:padding="5dp" android:clipChildren="true" android:clipToPadding="true">
                   {content}
                 </FrameLayout>
-                <TextView android:id="@+id/foot" android:layout_width="match_parent" android:layout_height="13dp" android:paddingStart="6dp" android:gravity="center_vertical" android:text="[ LIVE ] independent processes // encrypted channel" android:textColor="#00FF41" android:textSize="7sp" android:fontFamily="monospace" />
+                <LinearLayout android:id="@+id/foot" android:layout_width="match_parent" android:layout_height="13dp" android:layout_marginBottom="2dp" android:paddingStart="6dp" android:gravity="center_vertical" android:orientation="horizontal">
+                  <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="[ " android:textColor="#00FF41" android:textSize="7sp" android:fontFamily="monospace" />
+                  <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="LIVE" android:textColor="#FFFFFF" android:textSize="7sp" android:fontFamily="monospace" />
+                  <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text=" ] independent processes // encrypted channel" android:textColor="#00FF41" android:textSize="7sp" android:fontFamily="monospace" />
+                </LinearLayout>
               </LinearLayout>'''
               Path('app/src/main/res/layout/widget.xml').write_text(layout)
               Path('app/src/main/res/drawable/terminal_panel.xml').write_text(f'''<shape {ns} android:shape="rectangle"><solid android:color="#F5020804"/><stroke android:width="1dp" android:color="#00FF41"/><corners android:radius="2dp"/></shape>''')
               Path('app/src/main/res/drawable/terminal_header.xml').write_text(f'''<shape {ns} android:shape="rectangle"><solid android:color="#E8FFF0"/></shape>''')
               Path('app/src/main/res/anim/panel_in.xml').write_text(f'''<set {ns} android:duration="320"><alpha android:fromAlpha="0.0" android:toAlpha="1.0"/><translate android:fromYDelta="8%" android:toYDelta="0%"/></set>''')
               Path('app/src/main/res/anim/panel_out.xml').write_text(f'''<set {ns} android:duration="260"><alpha android:fromAlpha="1.0" android:toAlpha="0.0"/><translate android:fromYDelta="0%" android:toYDelta="-5%"/></set>''')
-
-              # The provider only initializes the widget and settings; ViewFlippers animate locally.
               kotlin = r'''
               package com.example.hackerwidget
               import android.app.*
@@ -192,11 +178,9 @@ jobs:
                   }
               }'''
               Path('app/src/main/java/com/example/hackerwidget/HackerWidgetProvider.kt').write_text(textwrap.dedent(kotlin))
-
               print("Random independent terminal panels installed. Building APK...")
               subprocess.run(["bash", "-e", "-o", "pipefail", "-c", marker + suffix], check=True)
               found_build = True
-
           if not found_build:
               raise SystemExit("ERROR: Could not locate the original Gradle build command")
           print("Matrix multi-window APK build completed.")
