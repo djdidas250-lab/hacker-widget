@@ -1,161 +1,28 @@
-name: Auto-Build Hacker Widget
+name: Matrix Widget
 on: [push, workflow_dispatch]
-
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-java@v4
-        with:
-          java-version: '17'
-          distribution: 'temurin'
-
-      - name: Generate Entire Android Project
+        with: { java-version: '17', distribution: 'temurin' }
+      - name: Build
         run: |
-          mkdir -p app/src/main/res/xml
-          mkdir -p app/src/main/res/layout
-          mkdir -p app/src/main/java/com/example/hackerwidget
-
-          cat << 'EOF' > settings.gradle
-          pluginManagement {
-              repositories { google(); mavenCentral(); gradlePluginPortal() }
-          }
-          dependencyResolutionManagement {
-              repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
-              repositories { google(); mavenCentral() }
-          }
-          rootProject.name = "HackerWidget"
-          include ':app'
-          EOF
-
-          cat << 'EOF' > build.gradle
-          plugins {
-              id 'com.android.application' version '8.2.2' apply false
-              id 'org.jetbrains.kotlin.android' version '1.9.22' apply false
-          }
-          EOF
-
-          cat << 'EOF' > app/build.gradle
-          plugins {
-              id 'com.android.application'
-              id 'org.jetbrains.kotlin.android'
-          }
-          android {
-              namespace 'com.example.hackerwidget'
-              compileSdk 34
-              defaultConfig {
-                  applicationId "com.example.hackerwidget"
-                  minSdk 26
-                  targetSdk 34
-                  versionCode 1
-                  versionName "1.0"
-              }
-              compileOptions {
-                  sourceCompatibility JavaVersion.VERSION_17
-                  targetCompatibility JavaVersion.VERSION_17
-              }
-              kotlinOptions { jvmTarget = '17' }
-          }
-          EOF
-
+          mkdir -p app/src/main/{res/{xml,layout,drawable},java/com/example/hackerwidget}
           python3 -c '
-          manifest = """<?xml version="1.0" encoding="utf-8"?>
-          <manifest xmlns:android="http://android.com">
-              <application android:label="Hacker Terminal Widget">
-                  <receiver android:name=".HackerWidgetProvider" android:exported="true">
-                      <intent-filter>
-                          <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
-                      </intent-filter>
-                      <meta-data android:name="android.appwidget.provider" android:resource="@xml/hacker_widget_info" />
-                  </receiver>
-              </application>
-          </manifest>"""
-          open("app/src/main/AndroidManifest.xml", "w").write(manifest)
-
-          info = """<?xml version="1.0" encoding="utf-8"?>
-          <appwidget-provider xmlns:android="http://android.com"
-              android:minWidth="180dp"
-              android:minHeight="110dp"
-              android:updatePeriodMillis="1800000"
-              android:initialLayout="@layout/hacker_widget"
-              android:resizeMode="horizontal|vertical"
-              android:widgetCategory="home_screen" />"""
-          open("app/src/main/res/xml/hacker_widget_info.xml", "w").write(info)
-
-          layout = """<?xml version="1.0" encoding="utf-8"?>
-          <LinearLayout xmlns:android="http://android.com"
-              android:layout_width="match_parent"
-              android:layout_height="match_parent"
-              android:background="#E6050505"
-              android:orientation="vertical"
-              android:padding="12dp">
-              <TextView
-                  android:id="@+id/widget_header"
-                  android:layout_width="match_parent"
-                  android:layout_height="wrap_content"
-                  android:fontFamily="monospace"
-                  android:text="root@android:~# sys_monitor"
-                  android:textColor="#00FF41"
-                  android:textSize="13sp"
-                  android:textStyle="bold" />
-              <TextView
-                  android:id="@+id/widget_body"
-                  android:layout_width="match_parent"
-                  android:layout_height="match_parent"
-                  android:layout_marginTop="6dp"
-                  android:fontFamily="monospace"
-                  android:text="[OK] KERNEL ACTIVE\\n> TAP TO REFRESH"
-                  android:textColor="#00CC33"
-                  android:textSize="11sp" />
-          </LinearLayout>"""
-          open("app/src/main/res/layout/hacker_widget.xml", "w").write(layout)
+          w = lambda p, s: open(p, "w").write(s)
+          w("settings.gradle", "pluginManagement{repositories{google();mavenCentral();gradlePluginPortal()}}\ndependencyResolutionManagement{repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS);repositories{google();mavenCentral()}}\nrootProject.name=\"MatrixWidget\"\ninclude\":app\"")
+          w("build.gradle", "plugins{id \"com.android.application\" version \"8.2.2\" apply false;id \"org.jetbrains.kotlin.android\" version \"1.9.22\" apply false}")
+          w("app/build.gradle", "plugins{id \"com.android.application\";id \"org.jetbrains.kotlin.android\"}\nandroid{namespace \"com.example.hackerwidget\";compileSdk 34;defaultConfig{applicationId \"com.example.hackerwidget\";minSdk 26;targetSdk 34;versionCode 1;versionName \"1.0\"};compileOptions{sourceCompatibility JavaVersion.VERSION_17;targetCompatibility JavaVersion.VERSION_17};kotlinOptions{jvmTarget=\"17\"}}")
+          w("app/src/main/AndroidManifest.xml", "<manifest xmlns:android=\"http://android.com\"><application android:label=\"Matrix Terminal\"><receiver android:name=\".HackerWidgetProvider\" android:exported=\"true\"><intent-filter><action android:name=\"android.appwidget.action.APPWIDGET_UPDATE\"/></intent-filter><meta-data android:name=\"android.appwidget.provider\" android:resource=\"@xml/info\"/></receiver></application></manifest>")
+          w("app/src/main/res/drawable/bg.xml", "<shape xmlns:android=\"http://android.com\"><solid android:color=\"#F2020502\"/><stroke android:width=\"2dp\" android:color=\"#00FF41\"/><corners android:radius=\"4dp\"/></shape>")
+          w("app/src/main/res/xml/info.xml", "<appwidget-provider xmlns:android=\"http://android.com\" android:minWidth=\"180dp\" android:minHeight=\"110dp\" android:updatePeriodMillis=\"1800000\" android:initialLayout=\"@layout/widget\" android:resizeMode=\"horizontal|vertical\" android:widgetCategory=\"home_screen\"/>")
+          w("app/src/main/res/layout/widget.xml", "<LinearLayout xmlns:android=\"http://android.com\" android:id=\"@+id/root\" android:layout_width=\"match_parent\" android:layout_height=\"match_parent\" android:background=\"@drawable/bg\" android:orientation=\"vertical\" android:padding=\"12dp\"><TextView android:layout_width=\"match_parent\" android:layout_height=\"wrap_content\" android:fontFamily=\"monospace\" android:text=\"SYS://MATRIX.NET [ONLINE]\" android:textColor=\"#FFFFFF\" android:textSize=\"12sp\" android:textStyle=\"bold\"/><TextView android:id=\"@+id/body\" android:layout_width=\"match_parent\" android:layout_height=\"match_parent\" android:layout_marginTop=\"6dp\" android:fontFamily=\"monospace\" android:text=\"> TAP TO SYNC\" android:textColor=\"#00FF41\" android:textSize=\"11sp\"/></LinearLayout>")
+          w("app/src/main/java/com/example/hackerwidget/HackerWidgetProvider.kt", """package com.example.hackerwidget
+          import android.app.*;import android.appwidget.*;import android.content.*;import android.graphics.Color;import android.text.*;import android.text.style.ForegroundColorSpan;import android.widget.RemoteViews;import java.text.SimpleDateFormat;import java.util.*;import kotlin.random.Random
+          class HackerWidgetProvider:AppWidgetProvider(){override fun onUpdate(c:Context,m:AppWidgetManager,ids:IntArray){val g=listOf("ｱ","ｲ","ｳ","ｴ","ｵ","ｶ","ｷ","ｸ","ｹ","ｺ","0","1","Z","X");for(id in ids){val v=RemoteViews(c.packageName,R.layout.widget);val t=SimpleDateFormat("HH:mm:ss",Locale.getDefault()).format(Date());val ip="${Random.nextInt(10,255)}.${Random.nextInt(0,255)}.${Random.nextInt(0,255)}.${Random.nextInt(1,254)}";val s1=(1..16).map{g.random()}.joinToString(" ");val p=Random.nextInt(14,98);val txt="$s1\n> TIME: $t UTC\n> NODE: $ip\n> TRACE: $p% // ACTIVE";val sp=SpannableString(txt);listOf(t,ip,"$p%","ACTIVE").forEach{w->val i=txt.indexOf(w);if(i>=0)sp.setSpan(ForegroundColorSpan(Color.WHITE),i,i+w.length,Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)};v.setTextViewText(R.id.body,sp);val pi=PendingIntent.getBroadcast(c,id,Intent(c,HackerWidgetProvider::class.java).apply{action=AppWidgetManager.ACTION_APPWIDGET_UPDATE;putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS,intArrayOf(id))},PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE);v.setOnClickPendingIntent(R.id.root,pi);m.updateAppWidget(id,v)}}}""")
           '
-
-          cat << 'EOF' > app/src/main/java/com/example/hackerwidget/HackerWidgetProvider.kt
-          package com.example.hackerwidget
-          import android.app.PendingIntent
-          import android.appwidget.AppWidgetManager
-          import android.appwidget.AppWidgetProvider
-          import android.content.Context
-          import android.content.Intent
-          import android.widget.RemoteViews
-          import java.text.SimpleDateFormat
-          import java.util.Date
-          import java.util.Locale
-          import kotlin.random.Random
-
-          class HackerWidgetProvider : AppWidgetProvider() {
-              override fun onUpdate(context: Context, appWidgetManager: AppWidgetManager, appWidgetIds: IntArray) {
-                  for (appWidgetId in appWidgetIds) {
-                      val views = RemoteViews(context.packageName, R.layout.hacker_widget)
-                      val time = SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date())
-                      val fakeIp = "${Random.nextInt(10, 255)}.${Random.nextInt(0, 255)}.${Random.nextInt(0, 255)}.${Random.nextInt(1, 254)}"
-                      val cpuLoad = Random.nextInt(12, 89)
-                      views.setTextViewText(R.id.widget_body, "[SYNC] $time UTC\n[NODE] $fakeIp\n[LOAD] CPU $cpuLoad% | MEM OK\n> STATUS: SECURE")
-                      val intent = Intent(context, HackerWidgetProvider::class.java).apply {
-                          action = AppWidgetManager.ACTION_APPWIDGET_UPDATE
-                          putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, intArrayOf(appWidgetId))
-                      }
-                      val pendingIntent = PendingIntent.getBroadcast(
-                          context, appWidgetId, intent,
-                          PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-                      )
-                      views.setOnClickPendingIntent(R.id.widget_body, pendingIntent)
-                      appWidgetManager.updateAppWidget(appWidgetId, views)
-                  }
-              }
-          }
-          EOF
-
-      - name: Build APK
-        run: |
-          gradle wrapper --gradle-version 8.5
-          chmod +x gradlew
-          ./gradlew assembleDebug
-
+          gradle wrapper --gradle-version 8.5 && chmod +x gradlew && ./gradlew assembleDebug
       - uses: actions/upload-artifact@v4
-        with:
-          name: HackerWidget-APK
-          path: app/build/outputs/apk/debug/app-debug.apk
+        with: { name: HackerWidget-APK, path: app/build/outputs/apk/debug/app-debug.apk }
