@@ -1,539 +1,190 @@
 
-name: Matrix Dual Widgets
+name: Matrix Dual Widgets - Random Terminal Windows
 on: [push, workflow_dispatch]
-
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
       - name: Set up Java
         uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: temurin
-
-      - name: Build Matrix Dual Widgets
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Generate app, add random animated terminal windows, and build
+        shell: bash
         run: |
-          python3 -m pip install pyyaml
-
+          set -euo pipefail
+          pip install pyyaml
           python3 - <<'PY'
-          import urllib.request
-          import subprocess
-          import yaml
+          import subprocess, urllib.request, yaml, textwrap, random
           from pathlib import Path
 
-          BASE_URL = (
-              "https://raw.githubusercontent.com/"
-              "djdidas250-lab/hacker-widget/"
-              "0ad3901/.github/workflows/build.yml"
-          )
-
-          print("Downloading the original Matrix source workflow...")
-          with urllib.request.urlopen(BASE_URL, timeout=30) as response:
-              base_text = response.read().decode("utf-8")
-
-          base = yaml.safe_load(base_text)
+          base_url = "https://raw.githubusercontent.com/djdidas250-lab/hacker-widget/0ad3901/.github/workflows/build.yml"
+          marker = "gradle wrapper --gradle-version 8.5 && chmod +x gradlew && ./gradlew assembleDebug --no-daemon"
+          print("Downloading the original verified app source...")
+          raw = urllib.request.urlopen(base_url, timeout=30).read().decode("utf-8")
+          base = yaml.safe_load(raw)
           steps = base["jobs"]["build"]["steps"]
-
-          layout = r'''<?xml version="1.0" encoding="utf-8"?>
-          <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
-              android:id="@+id/root"
-              android:layout_width="match_parent"
-              android:layout_height="match_parent"
-              android:background="#000000"
-              android:padding="5dp">
-
-              <TextView
-                  android:id="@+id/header"
-                  android:layout_width="match_parent"
-                  android:layout_height="20dp"
-                  android:layout_gravity="top"
-                  android:fontFamily="monospace"
-                  android:text="MATRIX // LIVE CONSOLE"
-                  android:textColor="#E8FFF0"
-                  android:textStyle="bold"
-                  android:textSize="9sp"/>
-
-              <TextView
-                  android:id="@+id/gear_t"
-                  android:layout_width="wrap_content"
-                  android:layout_height="20dp"
-                  android:layout_gravity="top|end"
-                  android:paddingEnd="3dp"
-                  android:text="⚙"
-                  android:textColor="#00FF41"
-                  android:textSize="13sp"/>
-
-              <LinearLayout
-                  android:id="@+id/panel1"
-                  android:layout_width="164dp"
-                  android:layout_height="wrap_content"
-                  android:layout_gravity="top|start"
-                  android:layout_marginTop="22dp"
-                  android:orientation="vertical"
-                  android:background="@drawable/terminal_panel"
-                  android:padding="3dp">
-
-                  <TextView
-                      android:id="@+id/title1"
-                      android:layout_width="match_parent"
-                      android:layout_height="17dp"
-                      android:background="#E8FFF0"
-                      android:fontFamily="monospace"
-                      android:gravity="center_vertical"
-                      android:paddingStart="4dp"
-                      android:text="NODE SCAN"
-                      android:textColor="#001A08"
-                      android:textStyle="bold"
-                      android:textSize="8sp"/>
-
-                  <TextView
-                      android:id="@+id/body1"
-                      android:layout_width="match_parent"
-                      android:layout_height="wrap_content"
-                      android:fontFamily="monospace"
-                      android:text="root@matrix:~# initializing..."
-                      android:textColor="#00FF41"
-                      android:textSize="7sp"
-                      android:maxLines="2"
-                      android:paddingTop="3dp"/>
-
-                  <ProgressBar
-                      android:id="@+id/progress1"
-                      style="?android:attr/progressBarStyleHorizontal"
-                      android:layout_width="match_parent"
-                      android:layout_height="4dp"
-                      android:max="100"
-                      android:progress="0"
-                      android:progressTint="#00FF41"
-                      android:progressBackgroundTint="#29432D"/>
-
-                  <TextView
-                      android:id="@+id/percent1"
-                      android:layout_width="match_parent"
-                      android:layout_height="wrap_content"
-                      android:fontFamily="monospace"
-                      android:text="00%"
-                      android:textColor="#E8FFF0"
-                      android:textSize="7sp"/>
-              </LinearLayout>
-
-              <LinearLayout
-                  android:id="@+id/panel2"
-                  android:layout_width="150dp"
-                  android:layout_height="wrap_content"
-                  android:layout_gravity="center"
-                  android:orientation="vertical"
-                  android:background="@drawable/terminal_panel"
-                  android:padding="3dp">
-
-                  <TextView
-                      android:id="@+id/title2"
-                      android:layout_width="match_parent"
-                      android:layout_height="17dp"
-                      android:background="#E8FFF0"
-                      android:fontFamily="monospace"
-                      android:gravity="center_vertical"
-                      android:paddingStart="4dp"
-                      android:text="KERNEL TRACE"
-                      android:textColor="#001A08"
-                      android:textStyle="bold"
-                      android:textSize="8sp"/>
-
-                  <TextView
-                      android:id="@+id/body2"
-                      android:layout_width="match_parent"
-                      android:layout_height="wrap_content"
-                      android:fontFamily="monospace"
-                      android:text="root@matrix:~# scanning..."
-                      android:textColor="#00FF41"
-                      android:textSize="7sp"
-                      android:maxLines="2"
-                      android:paddingTop="3dp"/>
-
-                  <ProgressBar
-                      android:id="@+id/progress2"
-                      style="?android:attr/progressBarStyleHorizontal"
-                      android:layout_width="match_parent"
-                      android:layout_height="4dp"
-                      android:max="100"
-                      android:progress="0"
-                      android:progressTint="#00FF41"
-                      android:progressBackgroundTint="#29432D"/>
-
-                  <TextView
-                      android:id="@+id/percent2"
-                      android:layout_width="match_parent"
-                      android:layout_height="wrap_content"
-                      android:fontFamily="monospace"
-                      android:text="00%"
-                      android:textColor="#E8FFF0"
-                      android:textSize="7sp"/>
-              </LinearLayout>
-
-              <LinearLayout
-                  android:id="@+id/panel3"
-                  android:layout_width="138dp"
-                  android:layout_height="wrap_content"
-                  android:layout_gravity="bottom|end"
-                  android:orientation="vertical"
-                  android:background="@drawable/terminal_panel"
-                  android:padding="3dp">
-
-                  <TextView
-                      android:id="@+id/title3"
-                      android:layout_width="match_parent"
-                      android:layout_height="17dp"
-                      android:background="#E8FFF0"
-                      android:fontFamily="monospace"
-                      android:gravity="center_vertical"
-                      android:paddingStart="4dp"
-                      android:text="DATA STREAM"
-                      android:textColor="#001A08"
-                      android:textStyle="bold"
-                      android:textSize="8sp"/>
-
-                  <TextView
-                      android:id="@+id/body3"
-                      android:layout_width="match_parent"
-                      android:layout_height="wrap_content"
-                      android:fontFamily="monospace"
-                      android:text="root@matrix:~# connecting..."
-                      android:textColor="#00FF41"
-                      android:textSize="7sp"
-                      android:maxLines="2"
-                      android:paddingTop="3dp"/>
-
-                  <ProgressBar
-                      android:id="@+id/progress3"
-                      style="?android:attr/progressBarStyleHorizontal"
-                      android:layout_width="match_parent"
-                      android:layout_height="4dp"
-                      android:max="100"
-                      android:progress="0"
-                      android:progressTint="#00FF41"
-                      android:progressBackgroundTint="#29432D"/>
-
-                  <TextView
-                      android:id="@+id/percent3"
-                      android:layout_width="match_parent"
-                      android:layout_height="wrap_content"
-                      android:fontFamily="monospace"
-                      android:text="00%"
-                      android:textColor="#E8FFF0"
-                      android:textSize="7sp"/>
-              </LinearLayout>
-          </FrameLayout>
-          '''
-
-          provider = r'''package com.example.hackerwidget
-
-          import android.app.PendingIntent
-          import android.appwidget.AppWidgetManager
-          import android.appwidget.AppWidgetProvider
-          import android.content.Context
-          import android.content.Intent
-          import android.view.View
-          import android.widget.RemoteViews
-          import kotlin.random.Random
-
-          class HackerWidgetProvider : AppWidgetProvider() {
-
-              private data class Panel(
-                  val panel: Int,
-                  val title: Int,
-                  val body: Int,
-                  val progress: Int,
-                  val percent: Int
-              )
-
-              override fun onUpdate(
-                  context: Context,
-                  manager: AppWidgetManager,
-                  ids: IntArray
-              ) {
-                  val prefs = context.getSharedPreferences(
-                      "cw_cache", Context.MODE_PRIVATE
-                  )
-
-                  val showGear = prefs.getBoolean("show_gear", true)
-                  val showBorder = prefs.getBoolean("border_term", true)
-
-                  val panels = listOf(
-                      Panel(R.id.panel1, R.id.title1, R.id.body1,
-                            R.id.progress1, R.id.percent1),
-                      Panel(R.id.panel2, R.id.title2, R.id.body2,
-                            R.id.progress2, R.id.percent2),
-                      Panel(R.id.panel3, R.id.title3, R.id.body3,
-                            R.id.progress3, R.id.percent3)
-                  )
-
-                  val titles = listOf(
-                      "NODE SCAN", "KERNEL TRACE", "ENCRYPTION",
-                      "FIREWALL", "DATA STREAM", "ACCESS PROTOCOL",
-                      "SYSTEM PATCH"
-                  )
-
-                  val commands = listOf(
-                      "root@matrix:~# scan --sector 07",
-                      "[OK] ROUTE SECURED // NODE",
-                      "decrypt --key 0xA7F3 // running",
-                      "bypass_ice --stealth // active",
-                      "dump_mem --verify // buffer",
-                      "trace --origin // relay found",
-                      "inject --payload // staging",
-                      "sync --shadow-node // linked",
-                      "firewall: probing port range",
-                      "kernel: validating modules"
-                  )
-
-                  for (id in ids) {
-                      val views = RemoteViews(
-                          context.packageName, R.layout.widget
-                      )
-
-                      views.setViewVisibility(
-                          R.id.gear_t,
-                          if (showGear) View.VISIBLE else View.GONE
-                      )
-
-                      views.setOnClickPendingIntent(
-                          R.id.gear_t,
-                          ClockWeatherProvider.cfgPi(context)
-                      )
-
-                      // Randomly show one, two, or three panels.
-                      val count = Random.nextInt(1, 4)
-                      val visible = (0..2).shuffled().take(count).toSet()
-
-                      for ((index, panel) in panels.withIndex()) {
-                          val isVisible = index in visible
-
-                          views.setViewVisibility(
-                              panel.panel,
-                              if (isVisible) View.VISIBLE else View.GONE
-                          )
-
-                          views.setInt(
-                              panel.panel,
-                              "setBackgroundResource",
-                              if (showBorder) R.drawable.terminal_panel
-                              else R.drawable.terminal_panel_off
-                          )
-
-                          if (isVisible) {
-                              val progress = Random.nextInt(8, 100)
-                              val ip = "10.${Random.nextInt(1,255)}." +
-                                  "${Random.nextInt(1,255)}." +
-                                  "${Random.nextInt(2,254)}"
-
-                              val text =
-                                  "${commands.random()}\n" +
-                                  "[${if (progress > 72) "OK" else "RUN"}] " +
-                                  "$ip // ${commands.random()}"
-
-                              views.setTextViewText(
-                                  panel.title, titles.random()
-                              )
-                              views.setTextViewText(panel.body, text)
-                              views.setTextViewText(
-                                  panel.percent, "$progress%"
-                              )
-                              views.setProgressBar(
-                                  panel.progress, 100, progress, false
-                              )
-                          }
-                      }
-
-                      val click = PendingIntent.getBroadcast(
-                          context,
-                          id,
-                          Intent(
-                              context, HackerWidgetProvider::class.java
-                          ).apply {
-                              action = AppWidgetManager.ACTION_APPWIDGET_UPDATE
-                              putExtra(
-                                  AppWidgetManager.EXTRA_APPWIDGET_IDS,
-                                  intArrayOf(id)
-                              )
-                          },
-                          PendingIntent.FLAG_UPDATE_CURRENT or
-                              PendingIntent.FLAG_IMMUTABLE
-                      )
-
-                      views.setOnClickPendingIntent(R.id.root, click)
-                      manager.updateAppWidget(id, views)
-                  }
-              }
-          }
-          '''
-
-          terminal_bg = r'''<?xml version="1.0" encoding="utf-8"?>
-          <shape xmlns:android="http://schemas.android.com/apk/res/android"
-              android:shape="rectangle">
-              <solid android:color="#030803"/>
-              <stroke android:width="1dp" android:color="#E8FFF0"/>
-              <corners android:radius="3dp"/>
-          </shape>
-          '''
-
-          terminal_bg_off = r'''<?xml version="1.0" encoding="utf-8"?>
-          <shape xmlns:android="http://schemas.android.com/apk/res/android"
-              android:shape="rectangle">
-              <solid android:color="#030803"/>
-              <corners android:radius="3dp"/>
-          </shape>
-          '''
-
-          def run_shell(command, label):
-              print("Running:", label)
-              subprocess.run(
-                  ["bash", "-e", "-o", "pipefail", "-c", command],
-                  check=True
-              )
-
-          found_build_step = False
+          found_build = False
 
           for step in steps:
               command = step.get("run")
               if not command:
                   continue
+              if marker not in command:
+                  print("Running original source step:", step.get("name", "setup"))
+                  subprocess.run(["bash", "-e", "-o", "pipefail", "-c", command], check=True)
+                  continue
 
-              name = step.get("name", "Build step")
+              prefix, suffix = command.split(marker, 1)
+              print("Generating original clock, weather, settings, and app sources...")
+              subprocess.run(["bash", "-e", "-o", "pipefail", "-c", prefix], check=True)
 
-              if name == "Write Weather & Build":
-                  marker = "gradle wrapper --gradle-version 8.5"
-                  if marker not in command:
-                      raise RuntimeError(
-                          "Could not find the expected Gradle build command."
-                      )
+              manifest = Path("app/src/main/AndroidManifest.xml")
+              mx = manifest.read_text()
+              perm = '<uses-permission android:name="com.android.alarm.permission.SET_ALARM"/>'
+              if perm not in mx:
+                  mx = mx.replace('<application', perm + '<application', 1)
+                  manifest.write_text(mx)
 
-                  before, after = command.split(marker, 1)
+              provider = Path("app/src/main/java/com/example/hackerwidget/ClockWeatherProvider.kt")
+              src = provider.read_text()
+              anchor = 'private fun tapPi(c:Context):PendingIntent{'
+              helper = ('private fun alarmPi(c:Context):PendingIntent{' \
+                'val i=Intent(android.provider.AlarmClock.ACTION_SET_ALARM).apply{' \
+                'flags=Intent.FLAG_ACTIVITY_NEW_TASK};' \
+                'val f=PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE;' \
+                'return if(Build.VERSION.SDK_INT>=34){' \
+                'val o=ActivityOptions.makeBasic().setPendingIntentBackgroundActivityStartMode(' \
+                'ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOWED);' \
+                'PendingIntent.getActivity(c,96,i,f,o.toBundle())' \
+                '}else PendingIntent.getActivity(c,96,i,f)}\n')
+              if 'private fun alarmPi(c:Context)' not in src:
+                  if anchor not in src:
+                      raise SystemExit("ERROR: Could not find clock alarm insertion point")
+                  src = src.replace(anchor, helper + anchor, 1)
+              old_click = ('v.setOnClickPendingIntent(R.id.gear_w,cfgPi(c));'
+                           'v.setOnClickPendingIntent(R.id.cw_root,tapPi(c));')
+              new_click = ('v.setOnClickPendingIntent(R.id.gear_w,cfgPi(c));'
+                           'v.setOnClickPendingIntent(R.id.w_time,alarmPi(c));'
+                           'v.setOnClickPendingIntent(R.id.cw_root,tapPi(c));')
+              if old_click in src:
+                  src = src.replace(old_click, new_click, 1)
+              elif new_click not in src:
+                  raise SystemExit("ERROR: Could not find clock click insertion point")
+              provider.write_text(src)
 
-                  # Generate the original clock/weather source first.
-                  run_shell(before, name + " source generation")
+              ns = 'xmlns:android="http://schemas.android.com/apk/res/android"'
 
-                  # Replace only the terminal widget source and layout.
-                  Path("app/src/main/res/layout/widget.xml").write_text(
-                      layout, encoding="utf-8"
-                  )
+              def panel(title, body, gravity, margin):
+                  return f'''<FrameLayout android:layout_width="match_parent" android:layout_height="match_parent">
+                    <LinearLayout android:layout_width="136dp" android:layout_height="wrap_content" android:layout_gravity="{gravity}" android:layout_margin="{margin}" android:orientation="vertical" android:padding="3dp" android:background="@drawable/terminal_panel">
+                      <TextView android:layout_width="match_parent" android:layout_height="15dp" android:gravity="center_vertical" android:paddingStart="4dp" android:background="@drawable/terminal_header" android:text="{title}" android:textColor="#001A08" android:textStyle="bold" android:textSize="7sp" android:fontFamily="monospace" />
+                      <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:padding="3dp" android:text="{body}" android:textColor="#00FF41" android:textSize="7sp" android:maxLines="3" android:fontFamily="monospace" />
+                      <ProgressBar style="?android:attr/progressBarStyleHorizontal" android:layout_width="match_parent" android:layout_height="3dp" android:indeterminate="true" android:indeterminateTint="#00FF41" android:indeterminateTintMode="src_in" />
+                    </LinearLayout>
+                  </FrameLayout>'''
 
-                  Path(
-                      "app/src/main/java/com/example/hackerwidget/"
-                      "HackerWidgetProvider.kt"
-                  ).write_text(provider, encoding="utf-8")
+              def flipper(fid, interval, margin, groups, repeats):
+                  positions = ['top|start', 'top|end', 'center', 'bottom|start', 'bottom|end', 'center_vertical|start', 'center_vertical|end']
+                  children = ['<FrameLayout android:layout_width="match_parent" android:layout_height="match_parent" />']
+                  for title, body in groups:
+                      gravity = random.choice(positions)
+                      for _ in range(repeats):
+                          children.append(panel(title, body, gravity, margin))
+                      children.append('<FrameLayout android:layout_width="match_parent" android:layout_height="match_parent" />')
+                  return (f'<ViewFlipper android:id="@+id/{fid}" android:layout_width="match_parent" '
+                          f'android:layout_height="match_parent" android:autoStart="true" '
+                          f'android:flipInterval="{interval}" android:inAnimation="@anim/panel_in" '
+                          f'android:outAnimation="@anim/panel_out">' + ''.join(children) + '</ViewFlipper>')
 
-                  Path(
-                      "app/src/main/res/drawable/terminal_panel.xml"
-                  ).write_text(terminal_bg, encoding="utf-8")
+              short_entries = [
+                ("AUTH / SCAN", "[+] scanning ports\\nnode: 10.0.4.21\\ntrace route: active"),
+                ("KERNEL TASK", "injecting module...\\nchecksum verified\\nprogress sequence: 42%"),
+              ]
+              medium_entries = [
+                ("FIREWALL / BYPASS", "root@matrix:~# bypass\\n[OK] handshake accepted\\npacket stream active"),
+                ("MEMORY DUMP", "0x7F2A -> 0x91BC\\nstack verified\\nreading sectors..."),
+                ("ENCRYPTION", "AES session running\\nkey exchange accepted\\nrotating cipher..."),
+              ]
+              long_entries = [
+                ("SYSTEM / OVERRIDE", "root@matrix:~# ./override\\n[+] access granted\\nloading kernel payload..."),
+                ("DATA / EXTRACT", "sector 04: reading\\nsector 05: verified\\ntransfer in progress..."),
+                ("NETWORK / TRACE", "route mapped: 8 hops\\nproxy chain active\\nconnection stable"),
+              ]
+              content = flipper('short_windows', 2200, '3dp', short_entries, 3)
+              content += flipper('medium_windows', 2450, '0dp', medium_entries, 5)
+              content += flipper('long_windows', 2850, '3dp', long_entries, 8)
 
-                  Path(
-                      "app/src/main/res/drawable/terminal_panel_off.xml"
-                  ).write_text(terminal_bg_off, encoding="utf-8")
+              layout = f'''<?xml version="1.0" encoding="utf-8"?>
+              <LinearLayout {ns} android:id="@+id/root" android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:padding="9dp" android:background="@drawable/bg">
+                <LinearLayout android:layout_width="match_parent" android:layout_height="23dp" android:gravity="center_vertical" android:orientation="horizontal">
+                  <ProgressBar android:layout_width="17dp" android:layout_height="17dp" android:indeterminate="true" android:indeterminateDrawable="@drawable/ring" />
+                  <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginStart="6dp" android:text="MATRIX // LIVE PROCESSES" android:textColor="#FFFFFF" android:textStyle="bold" android:textSize="9sp" android:fontFamily="monospace" />
+                  <TextView android:id="@+id/gear_t" android:layout_width="wrap_content" android:layout_height="wrap_content" android:paddingStart="5dp" android:text="⚙" android:textColor="#8800FF41" android:textSize="13sp" />
+                </LinearLayout>
+                <FrameLayout android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:clipChildren="false" android:clipToPadding="false">
+                  {content}
+                </FrameLayout>
+                <TextView android:id="@+id/foot" android:layout_width="match_parent" android:layout_height="13dp" android:gravity="center_vertical" android:text="[ LIVE ] independent processes // encrypted channel" android:textColor="#00FF41" android:textSize="7sp" android:fontFamily="monospace" />
+              </LinearLayout>'''
+              Path('app/src/main/res/layout/widget.xml').write_text(layout)
+              Path('app/src/main/res/drawable/terminal_panel.xml').write_text(f'''<shape {ns} android:shape="rectangle"><solid android:color="#F5020804"/><stroke android:width="1dp" android:color="#00FF41"/><corners android:radius="2dp"/></shape>''')
+              Path('app/src/main/res/drawable/terminal_header.xml').write_text(f'''<shape {ns} android:shape="rectangle"><solid android:color="#E8FFF0"/></shape>''')
+              Path('app/src/main/res/anim/panel_in.xml').write_text(f'''<set {ns} android:duration="320"><alpha android:fromAlpha="0.0" android:toAlpha="1.0"/><translate android:fromYDelta="8%" android:toYDelta="0%"/></set>''')
+              Path('app/src/main/res/anim/panel_out.xml').write_text(f'''<set {ns} android:duration="260"><alpha android:fromAlpha="1.0" android:toAlpha="0.0"/><translate android:fromYDelta="0%" android:toYDelta="-5%"/></set>''')
 
-                  # Preserve the alarm shortcut from successful build #52.
-                  manifest = Path(
-                      "app/src/main/AndroidManifest.xml"
-                  )
-                  xml = manifest.read_text(encoding="utf-8")
-                  permission = (
-                      '<uses-permission '
-                      'android:name="com.android.alarm.permission.SET_ALARM"/>'
-                  )
+              kotlin = r'''
+              package com.example.hackerwidget
+              import android.app.*
+              import android.appwidget.*
+              import android.content.*
+              import android.view.View
+              import android.widget.RemoteViews
+              class HackerWidgetProvider : AppWidgetProvider() {
+                  override fun onUpdate(context: Context, manager: AppWidgetManager, ids: IntArray) {
+                      val prefs = context.getSharedPreferences("cw_cache", Context.MODE_PRIVATE)
+                      val border = prefs.getBoolean("border_term", true)
+                      val gear = prefs.getBoolean("show_gear", true)
+                      for (id in ids) {
+                          val views = RemoteViews(context.packageName, R.layout.widget)
+                          views.setInt(R.id.root, "setBackgroundResource", if (border) R.drawable.bg else R.drawable.bg_off)
+                          views.setViewVisibility(R.id.gear_t, if (gear) View.VISIBLE else View.GONE)
+                          views.setOnClickPendingIntent(R.id.gear_t, ClockWeatherProvider.cfgPi(context))
+                          views.setDisplayedChild(R.id.short_windows, kotlin.random.Random.nextInt(0, 9))
+                          views.setDisplayedChild(R.id.medium_windows, kotlin.random.Random.nextInt(0, 19))
+                          views.setDisplayedChild(R.id.long_windows, kotlin.random.Random.nextInt(0, 28))
+                          val refresh = Intent(context, HackerWidgetProvider::class.java).apply {
+                              action = AppWidgetManager.ACTION_APPWIDGET_UPDATE
+                              putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, intArrayOf(id))
+                          }
+                          val pi = PendingIntent.getBroadcast(context, id, refresh,
+                              PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+                          views.setOnClickPendingIntent(R.id.root, pi)
+                          manager.updateAppWidget(id, views)
+                      }
+                  }
+              }'''
+              Path('app/src/main/java/com/example/hackerwidget/HackerWidgetProvider.kt').write_text(textwrap.dedent(kotlin))
 
-                  if permission not in xml:
-                      if "<application" not in xml:
-                          raise RuntimeError(
-                              "Could not find the Android application tag."
-                          )
-                      xml = xml.replace(
-                          "<application",
-                          permission + "<application",
-                          1
-                      )
-                      manifest.write_text(xml, encoding="utf-8")
+              print("Random independent terminal panels installed. Building APK...")
+              subprocess.run(["bash", "-e", "-o", "pipefail", "-c", marker + suffix], check=True)
+              found_build = True
 
-                  clock_file = Path(
-                      "app/src/main/java/com/example/hackerwidget/"
-                      "ClockWeatherProvider.kt"
-                  )
-                  clock_source = clock_file.read_text(encoding="utf-8")
-
-                  anchor = "private fun tapPi(c:Context):PendingIntent{"
-
-                  alarm_helper = (
-                      "private fun alarmPi(c:Context):PendingIntent{"
-                      "val i=Intent(android.provider.AlarmClock.ACTION_SET_ALARM)"
-                      ".apply{flags=Intent.FLAG_ACTIVITY_NEW_TASK};"
-                      "val f=PendingIntent.FLAG_UPDATE_CURRENT or "
-                      "PendingIntent.FLAG_IMMUTABLE;"
-                      "return if(Build.VERSION.SDK_INT>=34){"
-                      "val o=ActivityOptions.makeBasic()"
-                      ".setPendingIntentBackgroundActivityStartMode("
-                      "ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOWED);"
-                      "PendingIntent.getActivity(c,96,i,f,o.toBundle())"
-                      "}else PendingIntent.getActivity(c,96,i,f)}"
-                  )
-
-                  if "private fun alarmPi(c:Context)" not in clock_source:
-                      if anchor not in clock_source:
-                          raise RuntimeError(
-                              "Could not find the clock alarm insertion point."
-                          )
-                      clock_source = clock_source.replace(
-                          anchor, alarm_helper + anchor, 1
-                      )
-
-                  old_click = (
-                      "v.setOnClickPendingIntent(R.id.gear_w,cfgPi(c));"
-                  )
-                  alarm_click = (
-                      old_click +
-                      "v.setOnClickPendingIntent(R.id.w_time,alarmPi(c));"
-                  )
-
-                  if alarm_click not in clock_source:
-                      if old_click not in clock_source:
-                          raise RuntimeError(
-                              "Could not find the clock click insertion point."
-                          )
-                      clock_source = clock_source.replace(
-                          old_click, alarm_click, 1
-                      )
-
-                  clock_file.write_text(
-                      clock_source, encoding="utf-8"
-                  )
-
-                  print("Terminal replacement and alarm shortcut installed.")
-
-                  # Run the original Gradle build command.
-                  run_shell(marker + after, "Gradle build")
-                  found_build_step = True
-
-              else:
-                  run_shell(command, name)
-
-          if not found_build_step:
-              raise RuntimeError(
-                  "The original workflow build step was not found."
-              )
-
-          apk = Path("app/build/outputs/apk/debug/app-debug.apk")
-          if not apk.is_file() or apk.stat().st_size == 0:
-              raise RuntimeError("The APK was not created.")
-
-          subprocess.run(
-              ["unzip", "-t", str(apk)],
-              check=True
-          )
-
-          print("APK exists and its archive integrity check passed.")
+          if not found_build:
+              raise SystemExit("ERROR: Could not locate the original Gradle build command")
+          print("Matrix multi-window APK build completed.")
           PY
-
+      - name: Verify APK
+        run: |
+          test -s app/build/outputs/apk/debug/app-debug.apk
+          unzip -t app/build/outputs/apk/debug/app-debug.apk
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
