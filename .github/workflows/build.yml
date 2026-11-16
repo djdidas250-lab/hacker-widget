@@ -46,7 +46,22 @@ jobs:
               print("Generating original clock, weather, settings, and app sources...")
               subprocess.run(["bash", "-e", "-o", "pipefail", "-c", prefix], check=True)
 
-              # Restore the same alarm shortcut that was present in successful build #52.
+              # Fix Kotlin plugin resolution.
+              settings = Path("settings.gradle")
+              if not settings.exists():
+                  raise SystemExit("ERROR: settings.gradle was not generated")
+              settings_text = settings.read_text()
+              if "gradlePluginPortal()" not in settings_text:
+                  settings_text = settings_text.replace(
+                      "repositories{google();mavenCentral()}",
+                      "repositories{google();mavenCentral();gradlePluginPortal()}"
+                  )
+                  settings.write_text(settings_text)
+              if "gradlePluginPortal()" not in settings.read_text():
+                  raise SystemExit("ERROR: Could not add Gradle Plugin Portal")
+              print("Gradle Plugin Portal enabled.")
+
+              # Restore the alarm shortcut from successful build #52.
               manifest = Path("app/src/main/AndroidManifest.xml")
               mx = manifest.read_text()
               perm = '<uses-permission android:name="com.android.alarm.permission.SET_ALARM"/>'
@@ -81,8 +96,8 @@ jobs:
                   raise SystemExit("ERROR: Could not find clock click insertion point")
               provider.write_text(src)
 
-              # Three independent ViewFlippers run locally inside the home-screen widget.
               ns = 'xmlns:android="http://schemas.android.com/apk/res/android"'
+
               def panel(title, body, gravity, margin):
                   return f'''<FrameLayout android:layout_width="match_parent" android:layout_height="match_parent" android:clipChildren="true" android:clipToPadding="true">
                     <LinearLayout android:layout_width="124dp" android:layout_height="wrap_content" android:layout_gravity="{gravity}" android:layout_margin="6dp" android:orientation="vertical" android:padding="3dp" android:background="@drawable/terminal_panel">
@@ -141,7 +156,6 @@ jobs:
               Path('app/src/main/res/anim/panel_in.xml').write_text(f'''<set {ns} android:duration="320"><alpha android:fromAlpha="0.0" android:toAlpha="1.0"/><translate android:fromYDelta="8%" android:toYDelta="0%"/></set>''')
               Path('app/src/main/res/anim/panel_out.xml').write_text(f'''<set {ns} android:duration="260"><alpha android:fromAlpha="1.0" android:toAlpha="0.0"/><translate android:fromYDelta="0%" android:toYDelta="-5%"/></set>''')
 
-              # The provider only initializes the widget and settings; ViewFlippers animate locally.
               kotlin = r'''
               package com.example.hackerwidget
               import android.app.*
