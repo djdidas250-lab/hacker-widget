@@ -1,637 +1,209 @@
 
-name: Matrix Dual Widgets - Gunmetal Linux Desktop
+name: Matrix Dual Widgets - Final Visual Build
 
-on: [push, workflow_dispatch]
+on:
+  push:
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-java@v4
+      - name: Set up Java
+        uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: temurin
 
-      - name: Generate Matrix Desktop
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Apply final design and build APK
         shell: bash
         run: |
           set -euo pipefail
+          pip install pyyaml
+
           python3 - <<'PY'
+          import os
+          import re
           import subprocess
-          import urllib.request
           import yaml
-          import random
-          from pathlib import Path
-          from xml.sax.saxutils import escape
 
-          source = "https://raw.githubusercontent.com/djdidas250-lab/hacker-widget/0ad3901/.github/workflows/build.yml"
-          marker = "gradle wrapper --gradle-version 8.5 && chmod +x gradlew && ./gradlew assembleDebug --no-daemon"
+          print("Loading the previous working Matrix workflow...")
+          previous = subprocess.check_output(
+              [
+                  "git", "show",
+                  os.environ["GITHUB_SHA"] + "^:.github/workflows/build.yml"
+              ],
+              text=True
+          )
 
-          print("Preparing original Matrix application...")
-          original = urllib.request.urlopen(source, timeout=30).read().decode()
-          workflow = yaml.safe_load(original)
-          steps = workflow["jobs"]["build"]["steps"]
+          config = yaml.safe_load(previous)
+          steps = config["jobs"]["build"]["steps"]
 
-          build_found = False
-
+          target = None
           for step in steps:
-              command = step.get("run")
-              if not command:
-                  continue
-
-              if marker in command:
-                  prefix, suffix = command.split(marker, 1)
-                  subprocess.run(
-                      ["bash", "-e", "-o", "pipefail", "-c", prefix],
-                      check=True
-                  )
-                  build_command = marker + suffix
-                  build_found = True
+              if step.get("name") == "Generate futuristic random hacker hub and build APK":
+                  target = step
                   break
 
-              print("Running:", step.get("name", "Original setup"))
-              subprocess.run(
-                  ["bash", "-e", "-o", "pipefail", "-c", command],
-                  check=True
+          if target is None:
+              raise SystemExit(
+                  "ERROR: Previous Matrix build workflow was not found."
               )
 
-          if not build_found:
-              raise SystemExit("Original Gradle build command was not found")
+          run_script = target["run"]
 
-          root = Path("app/src/main/res")
-          layout_dir = root / "layout"
-          draw_dir = root / "drawable"
-          anim_dir = root / "anim"
+          # Make every terminal title bar charcoal with white lettering.
+          run_script, count = re.subn(
+              r'header_colors = \[.*?\n\s+\]',
+              'header_colors = [("#20272D", "#FFFFFF")]',
+              run_script,
+              count=1,
+              flags=re.S
+          )
+          if count != 1:
+              raise SystemExit("ERROR: Could not update terminal title colors.")
 
-          for folder in [layout_dir, draw_dir, anim_dir]:
-              folder.mkdir(parents=True, exist_ok=True)
-
-          ns = 'xmlns:android="http://schemas.android.com/apk/res/android"'
-
-          # Graphite outer border. Preserve the existing transparent background.
-          bg = draw_dir / "bg.xml"
-          if bg.exists():
-              s = bg.read_text()
-              s = s.replace("#00FF41", "#FF59616A")
-              s = s.replace("#6600FF41", "#66515B63")
-              bg.write_text(s)
-
-          # The no-border setting remains available in the original settings.
-          bg_off = draw_dir / "bg_off.xml"
-          if bg_off.exists():
-              s = bg_off.read_text()
-              s = s.replace("#00FF41", "#FF59616A")
-              bg_off.write_text(s)
-
-          # Mechanical gunmetal terminal frames.
-          (draw_dir / "terminal_panel.xml").write_text(f'''
-          <shape {ns} android:shape="rectangle">
-            <solid android:color="#F505080A"/>
-            <stroke android:width="1dp" android:color="#FF59616A"/>
-            <corners android:radius="2dp"/>
-          </shape>
-          ''')
-
-          # Randomized entrance and exit animations.
-          def animation(name, kind, entering):
-              duration = random.choice([260, 310, 360, 420, 480])
-
-              if kind == "spin":
-                  start = "-100" if entering else "0"
-                  end = "0" if entering else "115"
-                  a = "0.0" if entering else "1.0"
-                  b = "1.0" if entering else "0.0"
-                  small = "0.35" if entering else "1.0"
-                  large = "1.0" if entering else "0.25"
-
-                  body = f'''
-                  <rotate android:fromDegrees="{start}" android:toDegrees="{end}" android:pivotX="50%" android:pivotY="50%"/>
-                  <scale android:fromXScale="{small}" android:toXScale="{large}" android:fromYScale="{small}" android:toYScale="{large}" android:pivotX="50%" android:pivotY="50%"/>
-                  <alpha android:fromAlpha="{a}" android:toAlpha="{b}"/>'''
-
-              elif kind == "slide":
-                  y1 = "35%" if entering else "0%"
-                  y2 = "0%" if entering else "-35%"
-                  a = "0.0" if entering else "1.0"
-                  b = "1.0" if entering else "0.0"
-                  body = f'''
-                  <translate android:fromYDelta="{y1}" android:toYDelta="{y2}"/>
-                  <alpha android:fromAlpha="{a}" android:toAlpha="{b}"/>'''
-
-              elif kind == "zoom":
-                  x1 = "0.15" if entering else "1.0"
-                  x2 = "1.0" if entering else "0.15"
-                  a = "0.0" if entering else "1.0"
-                  b = "1.0" if entering else "0.0"
-                  body = f'''
-                  <scale android:fromXScale="{x1}" android:toXScale="{x2}" android:fromYScale="{x1}" android:toYScale="{x2}" android:pivotX="50%" android:pivotY="50%"/>
-                  <alpha android:fromAlpha="{a}" android:toAlpha="{b}"/>'''
-
-              elif kind == "flicker":
-                  a = "0.0" if entering else "1.0"
-                  b = "1.0" if entering else "0.0"
-                  body = f'''
-                  <alpha android:fromAlpha="{a}" android:toAlpha="{b}"/>
-                  <scale android:fromXScale="0.9" android:toXScale="1.0" android:fromYScale="0.9" android:toYScale="1.0" android:pivotX="50%" android:pivotY="50%"/>'''
-
-              else:
-                  a = "0.0" if entering else "1.0"
-                  b = "1.0" if entering else "0.0"
-                  body = f'''
-                  <alpha android:fromAlpha="{a}" android:toAlpha="{b}"/>'''
-
-              (anim_dir / f"{name}.xml").write_text(f'''
-              <set {ns} android:duration="{duration}">
-                {body}
-              </set>
-              ''')
-
-          effects = ["spin", "fade", "slide", "zoom", "flicker"]
-          random.shuffle(effects)
-
-          for i, effect in enumerate(effects):
-              animation(f"panel_in_{i}", effect, True)
-              animation(f"panel_out_{i}", effect, False)
-
-          messages = [
-              ("NETWORK / SCAN", ["mapping active nodes", "checking open ports", "route response received"]),
-              ("SECURITY / MONITOR", ["firewall status: active", "intrusion scan running", "signature not detected"]),
-              ("DATA / TRANSFER", ["sector 04: reading", "sector 05: verified", "transfer channel open"]),
-              ("KERNEL / ACTIVITY", ["loading system module", "memory address verified", "process continuing"]),
-              ("ENCRYPTION / AES", ["key exchange accepted", "cipher rotation active", "secure tunnel stable"]),
-              ("ACCESS / CONTROL", ["gateway response: 200", "identity token accepted", "session established"]),
-              ("PROXY / ROUTING", ["relay node connected", "route changed: 08 hops", "latency recalculated"]),
-              ("MEMORY / ANALYSIS", ["heap scan running", "buffer map updated", "memory blocks indexed"]),
-              ("SIGNAL / TRACKING", ["signal source detected", "tracking sequence active", "coordinates updating"]),
-              ("CORE / DIAGNOSTICS", ["thermal check passed", "core load recalculated", "system stable"]),
-              ("FIREWALL / EVENT", ["packet filter updated", "rule set synchronized", "watch process active"]),
-              ("DATABASE / QUERY", ["index table loading", "query response received", "cache refresh running"]),
-              ("QUANTUM / CHANNEL", ["channel synchronization", "phase alignment active", "coherence check running"]),
-              ("SYSTEM / OVERRIDE", ["root@matrix:~# override", "access token accepted", "loading module"]),
-              ("TRACE / ANALYSIS", ["trace route mapped", "proxy chain detected", "connection maintained"]),
-              ("AI / PROCESS", ["neural task initialized", "model weights loading", "inference sequence active"]),
-              ("PACKET / INSPECT", ["incoming packet found", "header validation passed", "stream inspection active"]),
-              ("REMOTE / SESSION", ["remote handshake ready", "session key generated", "connection encrypted"]),
-              ("CODE / EXECUTION", ["compiling virtual module", "syntax check passed", "execution queue active"]),
-              ("CIPHER / ROTATION", ["cipher block updated", "key sequence rotated", "secure state verified"]),
-              ("GRID / SYNCHRONIZE", ["grid node responding", "sync pulse received", "mesh network stable"]),
-              ("DATABASE / MIRROR", ["mirror node online", "replication sequence active", "checksum verified"]),
-              ("ACCESS / GATEWAY", ["gateway lock engaged", "access request pending", "security layer active"]),
-              ("SYSTEM / TELEMETRY", ["telemetry stream open", "status packet received", "metrics refreshing"]),
-              ("NODE / DISCOVERY", ["searching hidden nodes", "new endpoint detected", "mapping in progress"]),
-              ("PROCESS / WATCH", ["background task active", "thread count updated", "scheduler responding"]),
-              ("DATA / STREAM", ["buffer allocation ready", "stream throughput rising", "transfer verified"]),
-              ("SHELL / COMMAND", ["root@matrix:~# scan", "initializing command stack", "awaiting response"]),
-              ("SIGNAL / DECODE", ["incoming signal found", "decoder synchronized", "payload reconstruction"]),
-              ("VIRTUAL / ENVIRONMENT", ["virtual layer online", "render nodes connected", "environment loading"]),
-              ("NETWORK / TRAFFIC", ["traffic monitor active", "packet flow increasing", "route table updated"]),
-              ("CRYPTO / VALIDATION", ["signature verified", "certificate accepted", "secure state maintained"]),
-              ("SYSTEM / RECOVERY", ["backup node responding", "restore point located", "recovery task active"]),
-              ("MEMORY / CACHE", ["cache entries indexed", "memory map refreshed", "allocation complete"]),
-              ("SCAN / PERIMETER", ["perimeter sweep active", "unknown endpoint found", "secondary scan started"]),
-              ("PROTOCOL / HANDSHAKE", ["protocol negotiation", "handshake response ready", "session channel open"]),
-              ("REMOTE / DIAGNOSTIC", ["remote host responding", "service check running", "latency within range"]),
-              ("CORE / THREADS", ["thread allocation active", "scheduler load updated", "execution continuing"]),
-              ("DATA / ARCHIVE", ["archive block located", "checksum comparison running", "compression sequence active"]),
-              ("SENSOR / ARRAY", ["sensor grid online", "telemetry received", "signal strength updating"]),
-              ("SYSTEM / WATCHDOG", ["watchdog timer active", "heartbeat received", "process integrity passed"]),
-              ("ROUTE / RECON", ["route discovery started", "relay sequence detected", "path optimization active"]),
-              ("VIRTUAL / CONSOLE", ["virtual console ready", "command buffer loaded", "waiting for input"]),
-              ("SECURITY / AUDIT", ["audit sequence running", "access records indexed", "review process active"]),
-              ("NETWORK / BRIDGE", ["bridge connection open", "routing table synchronized", "link integrity passed"]),
-              ("CODE / DEPLOY", ["deployment package ready", "module checksum passed", "release sequence active"]),
-              ("DATA / RECOVERY", ["fragment located", "rebuilding data blocks", "recovery percentage rising"]),
-              ("AI / CORE SCAN", ["neural core responding", "pattern analysis active", "learning cycle running"]),
-              ("SYSTEM / LINK", ["uplink synchronized", "signal carrier stable", "remote channel active"]),
-              ("FIRMWARE / CHECK", ["firmware image loaded", "integrity test running", "version map updated"]),
-              ("ACCESS / LOG", ["session record created", "privilege map checked", "audit trail updated"]),
-              ("NETWORK / MESH", ["mesh topology changing", "neighbor nodes detected", "routing recalculated"]),
-              ("ENCRYPTION / TUNNEL", ["tunnel handshake complete", "key material secured", "cipher stream active"]),
-              ("PROCESS / QUEUE", ["task queue updated", "worker thread assigned", "execution slot reserved"]),
-              ("DATA / INDEX", ["index scan started", "record blocks located", "lookup table refreshed"]),
-              ("SECURITY / ALERT", ["anomaly pattern detected", "secondary check running", "monitor remains active"]),
-              ("SYSTEM / BOOT", ["virtual subsystem ready", "service map loaded", "startup sequence complete"]),
-          ]
-
-          gravities = [
-              "top|start", "top|center_horizontal", "top|end",
-              "center_vertical|start", "center", "center_vertical|end",
-              "bottom|start", "bottom|center_horizontal", "bottom|end"
-          ]
-
-          def panel(title, lines):
-              width = random.choice([78, 84, 90, 96, 102, 108, 114])
-              height = random.choice([54, 60, 66, 72, 80, 88])
-
-              if random.random() < 0.20:
-                  width = random.choice([64, 72, 80])
-                  height = width
-
-              gravity = random.choice(gravities)
-              margin = random.randint(11, 16)
-              dx = random.randint(-4, 4)
-              dy = random.randint(-4, 4)
-
-              mode = random.choices(
-                  ["green", "white", "mixed"],
-                  weights=[45, 20, 35]
-              )[0]
-
-              body = ""
-
-              for line in lines:
-                  color = (
-                      "#00FF41" if mode == "green"
-                      else "#FFFFFF" if mode == "white"
-                      else random.choice(["#00FF41", "#FFFFFF"])
-                  )
-
-                  body += f'''
-                  <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="{escape(line)}"
-                    android:textColor="{color}"
-                    android:textSize="{random.choice([6,7,8])}sp"
-                    android:maxLines="1"
-                    android:ellipsize="end"
-                    android:fontFamily="monospace"/>'''
-
-              progress = ""
-
-              if random.random() < 0.60:
-                  if random.random() < 0.5:
-                      progress = '''
-                      <ProgressBar
-                        style="?android:attr/progressBarStyleHorizontal"
-                        android:layout_width="match_parent"
-                        android:layout_height="3dp"
-                        android:indeterminate="true"
-                        android:indeterminateTint="#00FF41"/>'''
-                  else:
-                      progress = f'''
-                      <ProgressBar
-                        style="?android:attr/progressBarStyleHorizontal"
-                        android:layout_width="match_parent"
-                        android:layout_height="3dp"
-                        android:max="100"
-                        android:progress="{random.randint(10,96)}"
-                        android:progressTint="#00FF41"/>'''
-
-              return f'''
-              <FrameLayout
-                {ns}
-                android:layout_width="match_parent"
-                android:layout_height="match_parent">
-
-                <LinearLayout
-                  android:layout_width="{width}dp"
-                  android:layout_height="{height}dp"
-                  android:layout_gravity="{gravity}"
-                  android:layout_margin="{margin}dp"
-                  android:translationX="{dx}dp"
-                  android:translationY="{dy}dp"
-                  android:orientation="vertical"
-                  android:padding="2dp"
-                  android:background="@drawable/terminal_panel">
-
-                  <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="15dp"
-                    android:orientation="horizontal"
-                    android:gravity="center_vertical"
-                    android:background="#20272D">
-
-                    <TextView
-                      android:layout_width="0dp"
-                      android:layout_height="match_parent"
-                      android:layout_weight="1"
-                      android:gravity="center_vertical"
-                      android:paddingStart="4dp"
-                      android:text="{escape(title)}"
-                      android:textColor="#FFFFFF"
-                      android:textStyle="bold"
-                      android:textSize="7sp"
-                      android:maxLines="1"
-                      android:ellipsize="end"
-                      android:fontFamily="monospace"/>
-
-                    <TextView
-                      android:layout_width="10dp"
-                      android:layout_height="match_parent"
-                      android:gravity="center"
-                      android:text="—"
-                      android:textColor="#FFFFFF"
-                      android:textSize="9sp"/>
-
-                    <TextView
-                      android:layout_width="10dp"
-                      android:layout_height="match_parent"
-                      android:gravity="center"
-                      android:text="□"
-                      android:textColor="#FFFFFF"
-                      android:textSize="8sp"/>
-
-                    <TextView
-                      android:layout_width="10dp"
-                      android:layout_height="match_parent"
-                      android:gravity="center"
-                      android:text="×"
-                      android:textColor="#FFFFFF"
-                      android:textSize="10sp"/>
-                  </LinearLayout>
-
-                  <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="0dp"
-                    android:layout_weight="1"
-                    android:orientation="vertical"
-                    android:gravity="center_vertical"
-                    android:paddingStart="3dp"
-                    android:paddingEnd="2dp">
-                    {body}
-                  </LinearLayout>
-
-                  {progress}
-                </LinearLayout>
-              </FrameLayout>
-              '''
-
-          def blank():
-              return f'''
-              <FrameLayout
-                {ns}
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"/>
-              '''
-
-          def layer(index, interval):
-              blank_count = 0 if index == 0 else random.randint(6,13)
-              scenes = [blank() for _ in range(blank_count)]
-
-              for _ in range(24 - blank_count):
-                  title, lines = random.choice(messages)
-                  scenes.append(panel(title, lines))
-
-              random.shuffle(scenes)
-
-              return (
-                  f'<ViewFlipper android:id="@+id/window_layer_{index}" '
-                  'android:layout_width="match_parent" '
-                  'android:layout_height="match_parent" '
-                  'android:autoStart="true" '
-                  'android:animateFirstView="true" '
-                  'android:clipChildren="true" '
-                  'android:clipToPadding="true" '
-                  f'android:flipInterval="{interval}" '
-                  f'android:inAnimation="@anim/panel_in_{index}" '
-                  f'android:outAnimation="@anim/panel_out_{index}">'
-                  + "".join(scenes)
-                  + "</ViewFlipper>"
-              )
-
-          intervals = random.sample(
-              [1900, 2250, 2600, 3000, 3500, 4100, 4700, 5300],
-              5
+          # Add white Linux-style window controls to every terminal title.
+          run_script = run_script.replace(
+              'android:text="{title_xml}"',
+              'android:text="{title_xml}   — □ ×"'
           )
 
-          layers = [layer(i, intervals[i]) for i in range(5)]
-          random.shuffle(layers)
-
-          # Header and footer are outside the randomized desktop area.
-          # Extra inset around the spinner prevents it touching the border.
-          layout = f'''<?xml version="1.0" encoding="utf-8"?>
-          <LinearLayout
-            {ns}
-            android:id="@+id/root"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:orientation="vertical"
-            android:padding="10dp"
-            android:background="@drawable/bg">
-
-            <LinearLayout
-              android:layout_width="match_parent"
-              android:layout_height="32dp"
-              android:gravity="center_vertical"
-              android:orientation="horizontal"
-              android:paddingStart="5dp"
-              android:paddingTop="3dp"
-              android:paddingEnd="3dp">
-
-              <ProgressBar
-                android:layout_width="18dp"
-                android:layout_height="18dp"
-                android:layout_marginStart="3dp"
-                android:layout_marginEnd="5dp"
-                android:indeterminate="true"
-                android:indeterminateDrawable="@drawable/ring"/>
-
-              <TextView
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:layout_marginStart="4dp"
-                android:text="MATRIX // VIRTUAL COMMAND HUB"
-                android:textColor="#FFFFFF"
-                android:textStyle="bold"
-                android:textSize="9sp"
-                android:fontFamily="monospace"/>
-
-              <TextView
-                android:id="@+id/gear_t"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:paddingStart="5dp"
-                android:text="⚙"
-                android:textColor="#8800FF41"
-                android:textSize="13sp"/>
-            </LinearLayout>
-
-            <FrameLayout
-              android:layout_width="match_parent"
-              android:layout_height="0dp"
-              android:layout_weight="1"
-              android:padding="9dp"
-              android:clipChildren="true"
-              android:clipToPadding="true">
-
-              {''.join(layers)}
-
-            </FrameLayout>
-
-            <TextView
-              android:id="@+id/foot"
-              android:layout_width="match_parent"
-              android:layout_height="17dp"
-              android:paddingStart="6dp"
-              android:gravity="center_vertical"
-              android:text="[ LIVE ] VIRTUAL GRID // ENCRYPTED CHANNEL"
-              android:textColor="#FFFFFF"
-              android:textSize="7sp"
-              android:fontFamily="monospace"/>
-
-          </LinearLayout>'''
-
-          (layout_dir / "widget.xml").write_text(layout)
-
-          # Keep the original alarm, settings and refresh behavior.
-          provider = Path(
-              "app/src/main/java/com/example/hackerwidget/ClockWeatherProvider.kt"
+          # Make the terminal panel outlines gunmetal instead of green.
+          run_script = run_script.replace(
+              '<stroke android:width="1dp" android:color="#00FF41"/>',
+              '<stroke android:width="1dp" android:color="#59616A"/>'
           )
-          src = provider.read_text()
 
-          alarm_helper = '''
-          private fun alarmPi(c:Context):PendingIntent {
-              val i = Intent(android.provider.AlarmClock.ACTION_SET_ALARM)
-                  .apply { flags = Intent.FLAG_ACTIVITY_NEW_TASK }
-              val f = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-              return if (Build.VERSION.SDK_INT >= 34) {
-                  val o = ActivityOptions.makeBasic()
-                      .setPendingIntentBackgroundActivityStartMode(
-                          ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOWED
-                      )
-                  PendingIntent.getActivity(c, 96, i, f, o.toBundle())
-              } else PendingIntent.getActivity(c, 96, i, f)
-          }
+          # Add the narrow charcoal strip behind the top header only.
+          run_script, count = re.subn(
+              r'android:layout_height="23dp"(\s+)android:gravity="center_vertical"',
+              'android:layout_height="23dp"\\1android:background="#20272D"\\1android:gravity="center_vertical"',
+              run_script,
+              count=1
+          )
+          if count != 1:
+              raise SystemExit("ERROR: Could not locate the widget header.")
+
+          # Keep the spinner centered and safely inside the header.
+          run_script = run_script.replace(
+              'android:layout_marginTop="5dp"',
+              'android:layout_marginTop="0dp"',
+              1
+          )
+
+          # Give the outer widget and clock/weather frame metallic borders.
+          ring_patch = r'''
+          # Use a two-tone segmented green-and-white rotating ring.
+          from pathlib import Path
+
+          Path("app/src/main/res/drawable/ring_segments.xml").write_text("""
+          <vector xmlns:android="http://schemas.android.com/apk/res/android"
+              android:width="24dp"
+              android:height="24dp"
+              android:viewportWidth="24"
+              android:viewportHeight="24">
+              <path
+                  android:fillColor="@android:color/transparent"
+                  android:strokeColor="#00FF41"
+                  android:strokeWidth="3.2"
+                  android:strokeLineCap="round"
+                  android:pathData="M12,2 A10,10 0 0 1 22,12"/>
+              <path
+                  android:fillColor="@android:color/transparent"
+                  android:strokeColor="#FFFFFF"
+                  android:strokeWidth="3.2"
+                  android:strokeLineCap="round"
+                  android:pathData="M12,22 A10,10 0 0 1 2,12"/>
+          </vector>
+          """)
+
+          Path("app/src/main/res/drawable/ring.xml").write_text("""
+          <animated-rotate
+              xmlns:android="http://schemas.android.com/apk/res/android"
+              android:drawable="@drawable/ring_segments"
+              android:pivotX="50%"
+              android:pivotY="50%"
+              android:framesCount="24"
+              android:frameDuration="40"/>
+          """)
+
+          # Replace green outer outlines with subtle gunmetal gray.
+          for filename in ("bg.xml", "sbg.xml"):
+              drawable = Path("app/src/main/res/drawable") / filename
+              if drawable.exists():
+                  content = drawable.read_text()
+                  content = content.replace("#00FF41", "#59616A")
+                  content = content.replace("#6600FF41", "#6659616A")
+                  drawable.write_text(content)
           '''
 
-          if "private fun alarmPi(c:Context)" not in src:
-              anchor = "private fun tapPi(c:Context):PendingIntent"
-              if anchor not in src:
-                  raise SystemExit("Could not locate clock alarm insertion point")
-              src = src.replace(anchor, alarm_helper + "\n" + anchor, 1)
+          needle = "# Preserve the working clock-to-alarm shortcut."
+          if needle not in run_script:
+              raise SystemExit("ERROR: Could not locate the original setup section.")
 
-          clock_binding = "v.setOnClickPendingIntent(R.id.w_time,alarmPi(c));"
-          if clock_binding not in src:
-              anchor = "v.setOnClickPendingIntent(R.id.cw_root,tapPi(c));"
-              if anchor not in src:
-                  raise SystemExit("Could not locate clock click insertion point")
-              src = src.replace(anchor, anchor + clock_binding, 1)
+          run_script = run_script.replace(
+              needle,
+              ring_patch + "\n              " + needle,
+              1
+          )
 
-          provider.write_text(src)
-
-          # Random initial scene for every window layer.
-          kotlin = r'''
-          package com.example.hackerwidget
-
-          import android.app.*
-          import android.appwidget.*
-          import android.content.*
-          import android.view.View
-          import android.widget.RemoteViews
-          import kotlin.random.Random
-
-          class HackerWidgetProvider : AppWidgetProvider() {
-              override fun onUpdate(
-                  context: Context,
-                  manager: AppWidgetManager,
-                  ids: IntArray
-              ) {
-                  val prefs = context.getSharedPreferences(
-                      "cw_cache",
-                      Context.MODE_PRIVATE
-                  )
-
-                  val border = prefs.getBoolean("border_term", true)
-                  val gear = prefs.getBoolean("show_gear", true)
-
-                  for (id in ids) {
-                      val views = RemoteViews(
-                          context.packageName,
-                          R.layout.widget
-                      )
-
-                      views.setInt(
-                          R.id.root,
-                          "setBackgroundResource",
-                          if (border) R.drawable.bg else R.drawable.bg_off
-                      )
-
-                      views.setViewVisibility(
-                          R.id.gear_t,
-                          if (gear) View.VISIBLE else View.GONE
-                      )
-
-                      views.setOnClickPendingIntent(
-                          R.id.gear_t,
-                          ClockWeatherProvider.cfgPi(context)
-                      )
-
-                      for (layer in 0 until 5) {
-                          val viewId = when (layer) {
-                              0 -> R.id.window_layer_0
-                              1 -> R.id.window_layer_1
-                              2 -> R.id.window_layer_2
-                              3 -> R.id.window_layer_3
-                              else -> R.id.window_layer_4
-                          }
-
-                          views.setDisplayedChild(
-                              viewId,
-                              Random.nextInt(0, 24)
-                          )
-                      }
-
-                      val refresh = Intent(
-                          context,
-                          HackerWidgetProvider::class.java
-                      ).apply {
-                          action = AppWidgetManager.ACTION_APPWIDGET_UPDATE
-                          putExtra(
-                              AppWidgetManager.EXTRA_APPWIDGET_IDS,
-                              intArrayOf(id)
-                          )
-                      }
-
-                      val pi = PendingIntent.getBroadcast(
-                          context,
-                          id,
-                          refresh,
-                          PendingIntent.FLAG_UPDATE_CURRENT or
-                              PendingIntent.FLAG_IMMUTABLE
-                      )
-
-                      views.setOnClickPendingIntent(R.id.root, pi)
-                      manager.updateAppWidget(id, views)
-                  }
-              }
-          }
+          # Make only the word LIVE white. Brackets and all other footer
+          # wording remain neon green.
+          footer_patch = r'''
+                              val footerText = android.text.SpannableString(
+                                  "[ LIVE ] VIRTUAL GRID // ENCRYPTED CHANNEL"
+                              )
+                              val liveStart = footerText.indexOf("LIVE")
+                              footerText.setSpan(
+                                  android.text.style.ForegroundColorSpan(
+                                      android.graphics.Color.WHITE
+                                  ),
+                                  liveStart,
+                                  liveStart + 4,
+                                  android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+                              )
+                              views.setTextViewText(R.id.foot, footerText)
           '''
 
-          Path(
-              "app/src/main/java/com/example/hackerwidget/HackerWidgetProvider.kt"
-          ).write_text(kotlin)
+          footer_needle = "manager.updateAppWidget(id, views)"
+          if footer_needle not in run_script:
+              raise SystemExit("ERROR: Could not locate the widget update section.")
 
-          # Ensure the alarm permission exists.
-          manifest = Path("app/src/main/AndroidManifest.xml")
-          mx = manifest.read_text()
-          permission = '<uses-permission android:name="com.android.alarm.permission.SET_ALARM"/>'
+          run_script = run_script.replace(
+              footer_needle,
+              footer_patch + "\n                          " + footer_needle,
+              1
+          )
 
-          if permission not in mx:
-              mx = mx.replace("<application", permission + "<application", 1)
-              manifest.write_text(mx)
-
-          print("Gunmetal borders, white footer, inset spinner and randomized windows ready.")
-          print("Building APK...")
-
+          # Run the complete previous build process with the design changes.
+          print("Applying the approved Matrix visual design...")
           subprocess.run(
-              ["bash", "-e", "-o", "pipefail", "-c", build_command],
+              ["bash", "-e", "-o", "pipefail", "-c", run_script],
               check=True
           )
 
-          print("Gradle build finished.")
+          print("Matrix build process finished.")
           PY
 
       - name: Verify APK
         run: |
+          set -euo pipefail
           test -s app/build/outputs/apk/debug/app-debug.apk
           unzip -t app/build/outputs/apk/debug/app-debug.apk
+          echo "APK verification passed."
 
-      - uses: actions/upload-artifact@v4
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
         with:
           name: HackerWidget-APK
           path: app/build/outputs/apk/debug/app-debug.apk
