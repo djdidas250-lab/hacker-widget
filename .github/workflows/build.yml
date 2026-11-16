@@ -1,5 +1,5 @@
 
-name: Matrix Dual Widgets - Final Visual Build
+name: Matrix Dual Widgets - Stable Visual Update
 
 on:
   push:
@@ -24,176 +24,437 @@ jobs:
         with:
           python-version: '3.x'
 
-      - name: Apply final design and build APK
+      - name: Install build tools
+        run: pip install pyyaml
+
+      - name: Restore the last stable Matrix version
         shell: bash
         run: |
           set -euo pipefail
-          pip install pyyaml
+
+          curl -fsSL \
+            https://raw.githubusercontent.com/djdidas250-lab/hacker-widget/0ad3901/.github/workflows/build.yml \
+            -o /tmp/matrix-stable.yml
 
           python3 - <<'PY'
-          import os
-          import re
-          import subprocess
           import yaml
+          import subprocess
 
-          print("Loading the previous working Matrix workflow...")
-          previous = subprocess.check_output(
-              [
-                  "git", "show",
-                  os.environ["GITHUB_SHA"] + "^:.github/workflows/build.yml"
-              ],
-              text=True
-          )
+          with open("/tmp/matrix-stable.yml", encoding="utf-8") as f:
+              workflow = yaml.safe_load(f)
 
-          config = yaml.safe_load(previous)
-          steps = config["jobs"]["build"]["steps"]
+          steps = workflow["jobs"]["build"]["steps"]
 
-          target = None
           for step in steps:
-              if step.get("name") == "Generate futuristic random hacker hub and build APK":
-                  target = step
-                  break
+              script = step.get("run")
+              if not script:
+                  continue
 
-          if target is None:
-              raise SystemExit(
-                  "ERROR: Previous Matrix build workflow was not found."
+              name = step.get("name", "Stable Matrix setup")
+
+              if name == "Write Weather & Build":
+                  command = (
+                      "gradle wrapper --gradle-version 8.5 && "
+                      "chmod +x gradlew && "
+                      "./gradlew assembleDebug --no-daemon"
+                  )
+                  if command not in script:
+                      raise SystemExit("Stable build command not found.")
+                  script = script.replace(command, "", 1)
+
+              print("Running stable step:", name)
+              subprocess.run(
+                  ["bash", "-e", "-o", "pipefail", "-c", script],
+                  check=True
               )
+          PY
 
-          run_script = target["run"]
+      - name: Apply requested visual changes
+        shell: bash
+        run: |
+          set -euo pipefail
 
-          # Make every terminal title bar charcoal with white lettering.
-          run_script, count = re.subn(
-              r'header_colors = \[.*?\n\s+\]',
-              'header_colors = [("#20272D", "#FFFFFF")]',
-              run_script,
-              count=1,
-              flags=re.S
-          )
-          if count != 1:
-              raise SystemExit("ERROR: Could not update terminal title colors.")
-
-          # Add white Linux-style window controls to every terminal title.
-          run_script = run_script.replace(
-              'android:text="{title_xml}"',
-              'android:text="{title_xml}   — □ ×"'
-          )
-
-          # Make the terminal panel outlines gunmetal instead of green.
-          run_script = run_script.replace(
-              '<stroke android:width="1dp" android:color="#00FF41"/>',
-              '<stroke android:width="1dp" android:color="#59616A"/>'
-          )
-
-          # Add the narrow charcoal strip behind the top header only.
-          run_script, count = re.subn(
-              r'android:layout_height="23dp"(\s+)android:gravity="center_vertical"',
-              'android:layout_height="23dp"\\1android:background="#20272D"\\1android:gravity="center_vertical"',
-              run_script,
-              count=1
-          )
-          if count != 1:
-              raise SystemExit("ERROR: Could not locate the widget header.")
-
-          # Keep the spinner centered and safely inside the header.
-          run_script = run_script.replace(
-              'android:layout_marginTop="5dp"',
-              'android:layout_marginTop="0dp"',
-              1
-          )
-
-          # Give the outer widget and clock/weather frame metallic borders.
-          ring_patch = r'''
-          # Use a two-tone segmented green-and-white rotating ring.
+          python3 - <<'PY'
           from pathlib import Path
+          import xml.etree.ElementTree as ET
 
-          Path("app/src/main/res/drawable/ring_segments.xml").write_text("""
+          A = "{http://schemas.android.com/apk/res/android}"
+          ANDROID_NS = "http://schemas.android.com/apk/res/android"
+
+          ET.register_namespace("android", ANDROID_NS)
+
+          RES = Path("app/src/main/res")
+          DRAW = RES / "drawable"
+          LAYOUT = RES / "layout"
+
+          # ------------------------------------------------
+          # 1. Metallic outer borders and translucent panels
+          # ------------------------------------------------
+
+          for name in ("bg.xml", "sbg.xml"):
+              p = DRAW / name
+              if p.exists():
+                  data = p.read_text()
+                  data = data.replace("#00FF41", "#59616A")
+                  data = data.replace("#6600FF41", "#6659616A")
+                  data = data.replace("#FA010401", "#CC010401")
+                  p.write_text(data)
+
+          p = DRAW / "bg_off.xml"
+          if p.exists():
+              data = p.read_text().replace("#FA010401", "#CC010401")
+              p.write_text(data)
+
+          # ------------------------------------------------
+          # 2. Green and white segmented animated spinner
+          # ------------------------------------------------
+
+          (DRAW / "ring_segments.xml").write_text("""\
           <vector xmlns:android="http://schemas.android.com/apk/res/android"
               android:width="24dp"
               android:height="24dp"
               android:viewportWidth="24"
               android:viewportHeight="24">
+
               <path
-                  android:fillColor="@android:color/transparent"
+                  android:fillColor="#00000000"
                   android:strokeColor="#00FF41"
-                  android:strokeWidth="3.2"
+                  android:strokeWidth="3"
                   android:strokeLineCap="round"
                   android:pathData="M12,2 A10,10 0 0 1 22,12"/>
+
               <path
-                  android:fillColor="@android:color/transparent"
+                  android:fillColor="#00000000"
                   android:strokeColor="#FFFFFF"
-                  android:strokeWidth="3.2"
+                  android:strokeWidth="3"
                   android:strokeLineCap="round"
                   android:pathData="M12,22 A10,10 0 0 1 2,12"/>
           </vector>
           """)
 
-          Path("app/src/main/res/drawable/ring.xml").write_text("""
+          (DRAW / "ring.xml").write_text("""\
           <animated-rotate
               xmlns:android="http://schemas.android.com/apk/res/android"
               android:drawable="@drawable/ring_segments"
               android:pivotX="50%"
-              android:pivotY="50%"
-              android:framesCount="24"
-              android:frameDuration="40"/>
+              android:pivotY="50%"/>
           """)
 
-          # Replace green outer outlines with subtle gunmetal gray.
-          for filename in ("bg.xml", "sbg.xml"):
-              drawable = Path("app/src/main/res/drawable") / filename
-              if drawable.exists():
-                  content = drawable.read_text()
-                  content = content.replace("#00FF41", "#59616A")
-                  content = content.replace("#6600FF41", "#6659616A")
-                  drawable.write_text(content)
+          # ------------------------------------------------
+          # 3. Narrow charcoal header and white title
+          # ------------------------------------------------
+
+          layout = LAYOUT / "widget.xml"
+          tree = ET.parse(layout)
+          root = tree.getroot()
+
+          children = list(root)
+          if not children:
+              raise SystemExit("Matrix widget header is missing.")
+
+          header = children[0]
+          header.set(A + "background", "#20272D")
+          header.set(A + "paddingTop", "3dp")
+          header.set(A + "paddingBottom", "3dp")
+
+          title_found = False
+
+          for node in header.iter():
+              if node.tag.endswith("TextView"):
+                  value = node.get(A + "text", "")
+
+                  if value == "┌ Entering the Matrix ┐":
+                      node.set(
+                          A + "text",
+                          "MATRIX // VIRTUAL COMMAND HUB"
+                      )
+                      node.set(A + "textColor", "#FFFFFF")
+                      node.set(A + "textSize", "10sp")
+                      title_found = True
+
+                  if node.get(A + "id") == "@+id/gear_t":
+                      node.set(A + "textColor", "#00FF41")
+
+          if not title_found:
+              raise SystemExit("Original Matrix title was not found.")
+
+          # ------------------------------------------------
+          # 4. Create popup background
+          # ------------------------------------------------
+
+          (DRAW / "popup_bg.xml").write_text("""\
+          <shape xmlns:android="http://schemas.android.com/apk/res/android"
+              android:shape="rectangle">
+              <solid android:color="#EE080B0E"/>
+              <stroke
+                  android:width="1dp"
+                  android:color="#69737D"/>
+              <corners android:radius="3dp"/>
+          </shape>
+          """)
+
+          # ------------------------------------------------
+          # 5. Make an overlay over the existing terminal area
+          #    The original six-console ViewFlipper is preserved.
+          # ------------------------------------------------
+
+          flipper = None
+
+          for node in list(root):
+              if node.get(A + "id") == "@+id/f":
+                  flipper = node
+                  break
+
+          if flipper is None:
+              raise SystemExit("Original terminal ViewFlipper is missing.")
+
+          index = list(root).index(flipper)
+          root.remove(flipper)
+
+          scene = ET.Element("FrameLayout", {
+              A + "id": "@+id/terminal_scene",
+              A + "layout_width": "match_parent",
+              A + "layout_height": "0dp",
+              A + "layout_weight": "1",
+              A + "layout_marginTop": "4dp"
+          })
+
+          flipper.set(A + "layout_width", "match_parent")
+          flipper.set(A + "layout_height", "match_parent")
+          flipper.attrib.pop(A + "layout_weight", None)
+          flipper.set(A + "layout_marginTop", "0dp")
+
+          scene.append(flipper)
+
+          popup_layer = ET.SubElement(scene, "FrameLayout", {
+              A + "id": "@+id/popup_layer",
+              A + "layout_width": "match_parent",
+              A + "layout_height": "match_parent"
+          })
+
+          root.insert(index, scene)
+
+          # ------------------------------------------------
+          # 6. Five popup window layouts
+          # ------------------------------------------------
+
+          variants = [
+              ("popup_1", "148dp", "top|start"),
+              ("popup_2", "166dp", "center"),
+              ("popup_3", "140dp", "bottom|end"),
+              ("popup_4", "158dp", "top|end"),
+              ("popup_5", "145dp", "bottom|start")
+          ]
+
+          for name, width, gravity in variants:
+              xml = f"""\
+          <LinearLayout
+              xmlns:android="http://schemas.android.com/apk/res/android"
+              android:layout_width="{width}"
+              android:layout_height="wrap_content"
+              android:layout_gravity="{gravity}"
+              android:layout_margin="5dp"
+              android:orientation="vertical"
+              android:background="@drawable/popup_bg"
+              android:elevation="5dp">
+
+              <LinearLayout
+                  android:layout_width="match_parent"
+                  android:layout_height="21dp"
+                  android:orientation="horizontal"
+                  android:gravity="center_vertical"
+                  android:background="#20272D"
+                  android:paddingStart="5dp"
+                  android:paddingEnd="4dp">
+
+                  <TextView
+                      android:id="@+id/popup_title"
+                      android:layout_width="0dp"
+                      android:layout_height="wrap_content"
+                      android:layout_weight="1"
+                      android:text="MATRIX TERMINAL"
+                      android:textColor="#FFFFFF"
+                      android:textSize="8sp"
+                      android:fontFamily="monospace"/>
+
+                  <TextView
+                      android:layout_width="wrap_content"
+                      android:layout_height="wrap_content"
+                      android:text="− □ ×"
+                      android:textColor="#FFFFFF"
+                      android:textSize="9sp"
+                      android:fontFamily="monospace"/>
+              </LinearLayout>
+
+              <TextView
+                  android:id="@+id/popup_body"
+                  android:layout_width="match_parent"
+                  android:layout_height="wrap_content"
+                  android:minHeight="42dp"
+                  android:maxLines="5"
+                  android:padding="5dp"
+                  android:text="root@matrix:~# ACCESS GRANTED"
+                  android:textColor="#00FF41"
+                  android:textSize="7sp"
+                  android:fontFamily="monospace"/>
+          </LinearLayout>
+          """
+              (LAYOUT / (name + ".xml")).write_text(xml)
+
+          tree.write(
+              layout,
+              encoding="utf-8",
+              xml_declaration=True
+          )
+
+          # ------------------------------------------------
+          # 7. Preserve original terminal code and add popups
+          # ------------------------------------------------
+
+          java = Path(
+              "app/src/main/java/com/example/hackerwidget/"
+              "HackerWidgetProvider.kt"
+          )
+
+          code = java.read_text()
+
+          old_footer = (
+              'v.setTextViewText(R.id.foot,hi('
+              '"└ [CONSOLES:6/6] [$ip] [$t] [EXEC] ┘",'
+              'listOf("6/6",ip,"[EXEC]")));'
+          )
+
+          new_footer = (
+              'v.setTextViewText(R.id.foot,'
+              'hi("└ LIVE ┘",listOf("LIVE")));'
+          )
+
+          if old_footer not in code:
+              raise SystemExit("Original terminal footer was not found.")
+
+          code = code.replace(old_footer, new_footer, 1)
+
+          marker = "m.updateAppWidget(id,v)"
+
+          if code.count(marker) != 1:
+              raise SystemExit("Could not locate unique widget update.")
+
+          popup_code = r'''
+          v.removeAllViews(R.id.popup_layer)
+
+          val popupLayouts = listOf(
+              R.layout.popup_1,
+              R.layout.popup_2,
+              R.layout.popup_3,
+              R.layout.popup_4,
+              R.layout.popup_5
+          )
+
+          val popupTitles = listOf(
+              "ROOT ACCESS",
+              "ENCRYPTION",
+              "NETWORK TRACE",
+              "KERNEL CONSOLE",
+              "MATRIX TERMINAL"
+          )
+
+          val popupBodies = listOf(
+              "root@matrix:~# ACCESS GRANTED\n0x7F3A VERIFIED",
+              "AES-512 PROCESS\nKEY EXCHANGE: OK",
+              "ROUTE SCAN ACTIVE\nNODE // 192.168.1.1",
+              "KERNEL PAYLOAD\nMEMORY CHECK: OK",
+              "SYSTEM ONLINE\nFOLLOW THE WHITE RABBIT"
+          )
+
+          val popupCount = Random.nextInt(1, 6)
+
+          popupLayouts.shuffled().take(popupCount).forEach { layoutId ->
+              val popup = RemoteViews(c.packageName, layoutId)
+              val choice = Random.nextInt(popupTitles.size)
+
+              popup.setTextViewText(
+                  R.id.popup_title,
+                  popupTitles[choice]
+              )
+
+              popup.setTextViewText(
+                  R.id.popup_body,
+                  popupBodies[choice]
+              )
+
+              v.addView(R.id.popup_layer, popup)
+          }
           '''
 
-          needle = "# Preserve the working clock-to-alarm shortcut."
-          if needle not in run_script:
-              raise SystemExit("ERROR: Could not locate the original setup section.")
-
-          run_script = run_script.replace(
-              needle,
-              ring_patch + "\n              " + needle,
+          code = code.replace(
+              marker,
+              popup_code + "\n" + marker,
               1
           )
 
-          # Make only the word LIVE white. Brackets and all other footer
-          # wording remain neon green.
-          footer_patch = r'''
-                              val footerText = android.text.SpannableString(
-                                  "[ LIVE ] VIRTUAL GRID // ENCRYPTED CHANNEL"
-                              )
-                              val liveStart = footerText.indexOf("LIVE")
-                              footerText.setSpan(
-                                  android.text.style.ForegroundColorSpan(
-                                      android.graphics.Color.WHITE
-                                  ),
-                                  liveStart,
-                                  liveStart + 4,
-                                  android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
-                              )
-                              views.setTextViewText(R.id.foot, footerText)
-          '''
+          java.write_text(code)
 
-          footer_needle = "manager.updateAppWidget(id, views)"
-          if footer_needle not in run_script:
-              raise SystemExit("ERROR: Could not locate the widget update section.")
+          # ------------------------------------------------
+          # 8. Keep clock tap as an alarm shortcut.
+          #    Keep the existing clock/weather sync tap too.
+          # ------------------------------------------------
 
-          run_script = run_script.replace(
-              footer_needle,
-              footer_patch + "\n                          " + footer_needle,
+          weather = Path(
+              "app/src/main/java/com/example/hackerwidget/"
+              "ClockWeatherProvider.kt"
+          )
+
+          weather_code = weather.read_text()
+
+          sync_marker = (
+              "v.setOnClickPendingIntent(R.id.cw_root,tapPi(c));"
+          )
+
+          alarm_click = (
+              "v.setOnClickPendingIntent(R.id.w_time,"
+              "PendingIntent.getActivity(c,100,"
+              "Intent(android.provider.AlarmClock.ACTION_SHOW_ALARMS),"
+              "PendingIntent.FLAG_UPDATE_CURRENT or "
+              "PendingIntent.FLAG_IMMUTABLE));"
+          )
+
+          if sync_marker not in weather_code:
+              raise SystemExit("Clock/weather sync handler was not found.")
+
+          if "R.id.w_time" not in weather_code:
+              weather_code = weather_code.replace(
+                  sync_marker,
+                  sync_marker + alarm_click,
+                  1
+              )
+
+          weather.write_text(weather_code)
+
+          # ------------------------------------------------
+          # 9. Gradle plugin repository
+          # ------------------------------------------------
+
+          settings = Path("settings.gradle")
+          settings_code = settings.read_text()
+
+          settings_code = settings_code.replace(
+              "repositories{google();mavenCentral()}",
+              "repositories{google();mavenCentral();gradlePluginPortal()}",
               1
           )
 
-          # Run the complete previous build process with the design changes.
-          print("Applying the approved Matrix visual design...")
-          subprocess.run(
-              ["bash", "-e", "-o", "pipefail", "-c", run_script],
-              check=True
-          )
+          settings.write_text(settings_code)
 
-          print("Matrix build process finished.")
+          print("Stable Matrix design changes applied.")
           PY
+
+      - name: Build APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          gradle wrapper --gradle-version 8.5
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon
 
       - name: Verify APK
         run: |
