@@ -60,8 +60,8 @@ jobs:
           }
           EOF
 
-          cat << 'EOF' > app/src/main/AndroidManifest.xml
-          <?xml version="1.0" encoding="utf-8"?>
+          python3 -c '
+          manifest = """<?xml version="1.0" encoding="utf-8"?>
           <manifest xmlns:android="http://android.com">
               <application android:label="Hacker Terminal Widget">
                   <receiver android:name=".HackerWidgetProvider" android:exported="true">
@@ -71,22 +71,20 @@ jobs:
                       <meta-data android:name="android.appwidget.provider" android:resource="@xml/hacker_widget_info" />
                   </receiver>
               </application>
-          </manifest>
-          EOF
+          </manifest>"""
+          open("app/src/main/AndroidManifest.xml", "w").write(manifest)
 
-          cat << 'EOF' > app/src/main/res/xml/hacker_widget_info.xml
-          <?xml version="1.0" encoding="utf-8"?>
+          info = """<?xml version="1.0" encoding="utf-8"?>
           <appwidget-provider xmlns:android="http://android.com"
               android:minWidth="180dp"
               android:minHeight="110dp"
               android:updatePeriodMillis="1800000"
               android:initialLayout="@layout/hacker_widget"
               android:resizeMode="horizontal|vertical"
-              android:widgetCategory="home_screen" />
-          EOF
+              android:widgetCategory="home_screen" />"""
+          open("app/src/main/res/xml/hacker_widget_info.xml", "w").write(info)
 
-          cat << 'EOF' > app/src/main/res/layout/hacker_widget.xml
-          <?xml version="1.0" encoding="utf-8"?>
+          layout = """<?xml version="1.0" encoding="utf-8"?>
           <LinearLayout xmlns:android="http://android.com"
               android:layout_width="match_parent"
               android:layout_height="match_parent"
@@ -108,11 +106,12 @@ jobs:
                   android:layout_height="match_parent"
                   android:layout_marginTop="6dp"
                   android:fontFamily="monospace"
-                  android:text="[OK] KERNEL ACTIVE\n> TAP TO REFRESH"
+                  android:text="[OK] KERNEL ACTIVE\\n> TAP TO REFRESH"
                   android:textColor="#00CC33"
                   android:textSize="11sp" />
-          </LinearLayout>
-          EOF
+          </LinearLayout>"""
+          open("app/src/main/res/layout/hacker_widget.xml", "w").write(layout)
+          '
 
           cat << 'EOF' > app/src/main/java/com/example/hackerwidget/HackerWidgetProvider.kt
           package com.example.hackerwidget
