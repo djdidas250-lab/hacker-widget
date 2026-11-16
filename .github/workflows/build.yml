@@ -1,40 +1,46 @@
 
-name: Matrix Dual Widgets - Glass Widget
+name: Matrix Dual Widgets
 on: [push, workflow_dispatch]
+
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Set up Java
-        uses: actions/setup-java@v4
+      - uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: temurin
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
           python-version: '3.x'
 
-      - name: Generate app, glass background, and animated terminal windows
+      - name: Generate Matrix widget
         shell: bash
         run: |
           set -euo pipefail
           pip install pyyaml
+
           python3 - <<'PY'
-          import subprocess, urllib.request, yaml, textwrap, random
+          import subprocess
+          import urllib.request
+          import yaml
+          import textwrap
+          import random
           from pathlib import Path
+
+          random.seed()
 
           base_url = "https://raw.githubusercontent.com/djdidas250-lab/hacker-widget/0ad3901/.github/workflows/build.yml"
           marker = "gradle wrapper --gradle-version 8.5 && chmod +x gradlew && ./gradlew assembleDebug --no-daemon"
 
-          print("Downloading original app source...")
+          print("Loading original app setup...")
           raw = urllib.request.urlopen(base_url, timeout=30).read().decode("utf-8")
           base = yaml.safe_load(raw)
           steps = base["jobs"]["build"]["steps"]
+
           found_build = False
 
           for step in steps:
@@ -43,7 +49,7 @@ jobs:
                   continue
 
               if marker not in command:
-                  print("Running original source step:", step.get("name", "setup"))
+                  print("Running:", step.get("name", "original setup"))
                   subprocess.run(
                       ["bash", "-e", "-o", "pipefail", "-c", command],
                       check=True
@@ -51,7 +57,8 @@ jobs:
                   continue
 
               prefix, suffix = command.split(marker, 1)
-              print("Generating original app sources...")
+
+              print("Generating original Android project...")
               subprocess.run(
                   ["bash", "-e", "-o", "pipefail", "-c", prefix],
                   check=True
@@ -62,6 +69,7 @@ jobs:
                   raise SystemExit("ERROR: settings.gradle was not generated")
 
               settings_text = settings.read_text()
+
               if "gradlePluginPortal()" not in settings_text:
                   settings_text = settings_text.replace(
                       "repositories{google();mavenCentral()}",
@@ -70,28 +78,33 @@ jobs:
                   settings.write_text(settings_text)
 
               if "gradlePluginPortal()" not in settings.read_text():
-                  raise SystemExit("ERROR: Could not add Gradle Plugin Portal")
+                  raise SystemExit("ERROR: Could not enable Gradle Plugin Portal")
 
               print("Gradle Plugin Portal enabled.")
 
-              # Slightly translucent OUTER widget background.
-              # The green border layers remain intact.
+              # Slightly transparent OUTER widget background.
+              # Inner terminal panels remain dark and opaque.
               for drawable in ["bg.xml", "bg_off.xml"]:
                   path = Path("app/src/main/res/drawable") / drawable
+
                   if not path.exists():
                       raise SystemExit(f"ERROR: Missing {drawable}")
 
                   content = path.read_text()
+
                   if "#FA010401" not in content:
                       raise SystemExit(
                           f"ERROR: Original background color not found in {drawable}"
                       )
 
-                  path.write_text(content.replace("#FA010401", "#C0010401"))
+                  path.write_text(
+                      content.replace("#FA010401", "#C0010401")
+                  )
 
-              # Keep the alarm shortcut.
+              # Keep the alarm permission and shortcut.
               manifest = Path("app/src/main/AndroidManifest.xml")
               mx = manifest.read_text()
+
               perm = '<uses-permission android:name="com.android.alarm.permission.SET_ALARM"/>'
 
               if perm not in mx:
@@ -101,9 +114,11 @@ jobs:
               provider = Path(
                   "app/src/main/java/com/example/hackerwidget/ClockWeatherProvider.kt"
               )
+
               src = provider.read_text()
 
               anchor = 'private fun tapPi(c:Context):PendingIntent{'
+
               helper = (
                   'private fun alarmPi(c:Context):PendingIntent{' \
                   'val i=Intent(android.provider.AlarmClock.ACTION_SET_ALARM).apply{' \
@@ -118,7 +133,8 @@ jobs:
 
               if 'private fun alarmPi(c:Context)' not in src:
                   if anchor not in src:
-                      raise SystemExit("ERROR: Could not find alarm insertion point")
+                      raise SystemExit("ERROR: Could not find alarm helper insertion point")
+
                   src = src.replace(anchor, helper + anchor, 1)
 
               old_click = (
@@ -182,49 +198,34 @@ jobs:
                       android:indeterminateTintMode="src_in" />
                   </LinearLayout>'''
 
-              short_entries = [
+              entries = [
                   ("AUTH / SCAN", "[+] scanning ports\\nnode: 10.0.4.21\\ntrace route: active"),
                   ("KERNEL TASK", "injecting module...\\nchecksum verified\\nprogress sequence: 42%"),
-              ]
-
-              medium_entries = [
                   ("FIREWALL / BYPASS", "root@matrix:~# bypass\\n[OK] handshake accepted\\npacket stream active"),
                   ("MEMORY DUMP", "0x7F2A -> 0x91BC\\nstack verified\\nreading sectors..."),
                   ("ENCRYPTION", "AES session running\\nkey exchange accepted\\nrotating cipher..."),
-              ]
-
-              long_entries = [
                   ("SYSTEM / OVERRIDE", "root@matrix:~# ./override\\n[+] access granted\\nloading kernel payload..."),
                   ("DATA / EXTRACT", "sector 04: reading\\nsector 05: verified\\ntransfer in progress..."),
                   ("NETWORK / TRACE", "route mapped: 8 hops\\nproxy chain active\\nconnection stable"),
+                  ("REMOTE ACCESS", "handshake initialized\\nsecure tunnel active\\nawaiting response..."),
+                  ("PROCESS / MONITOR", "process 0142 active\\nCPU stream verified\\nmonitoring system...")
               ]
 
-              # Every pop-up is placed inside the middle content area.
-              # The header, spinning icon, footer, and outer border are
-              # separate from this area and cannot be covered by these panels.
-              #
-              # These positions spread panels around the usable area.
+              # Nine positions across the entire usable middle area.
+              # Center and middle positions are deliberately included.
               positions = [
                   "top|start",
+                  "top|center_horizontal",
                   "top|end",
                   "center_vertical|start",
+                  "center",
                   "center_vertical|end",
                   "bottom|start",
-                  "bottom|end",
+                  "bottom|center_horizontal",
+                  "bottom|end"
               ]
 
-              # Two-window combinations are staggered rather than
-              # directly beside each other or directly one above another.
-              spread_pairs = [
-                  ("top|start", "center_vertical|end"),
-                  ("top|end", "center_vertical|start"),
-                  ("center_vertical|start", "bottom|end"),
-                  ("center_vertical|end", "bottom|start"),
-                  ("top|start", "bottom|end"),
-                  ("top|end", "bottom|start"),
-              ]
-
-              def make_scene(entries):
+              def make_scene():
                   frame = [
                       '<FrameLayout '
                       'android:layout_width="match_parent" '
@@ -233,13 +234,35 @@ jobs:
                       'android:clipToPadding="true">'
                   ]
 
-                  count = random.choices([1, 2], weights=[4, 6])[0]
+                  # Usually one or two windows; sometimes three.
+                  count = random.choices(
+                      [1, 2, 3],
+                      weights=[3, 6, 1]
+                  )[0]
+
                   selected_entries = random.sample(entries, count)
 
-                  if count == 1:
-                      chosen = [random.choice(positions)]
-                  else:
-                      chosen = list(random.choice(spread_pairs))
+                  # Random positions across the full middle area.
+                  # No spacing restrictions: some windows may overlap.
+                  chosen = random.sample(positions, count)
+
+                  # Occasionally use nearby positions to create
+                  # natural-looking overlaps between terminal windows.
+                  if count >= 2 and random.random() < 0.30:
+                      overlap_pairs = [
+                          ("top|start", "top|center_horizontal"),
+                          ("top|center_horizontal", "top|end"),
+                          ("center_vertical|start", "center"),
+                          ("center", "center_vertical|end"),
+                          ("bottom|start", "bottom|center_horizontal"),
+                          ("bottom|center_horizontal", "bottom|end"),
+                          ("top|center_horizontal", "center"),
+                          ("center", "bottom|center_horizontal")
+                      ]
+
+                      pair = random.choice(overlap_pairs)
+                      chosen[0] = pair[0]
+                      chosen[1] = pair[1]
 
                   random.shuffle(chosen)
 
@@ -249,13 +272,9 @@ jobs:
                   frame.append("</FrameLayout>")
                   return "".join(frame)
 
-              # One shared flipper prevents separate layers of pop-ups
-              # from unexpectedly covering one another.
-              all_entries = short_entries + medium_entries + long_entries
-              scenes = []
-
-              for _ in range(30):
-                  scenes.append(make_scene(all_entries))
+              # Create many different combinations so the display
+              # does not keep using the same few arrangements.
+              scenes = [make_scene() for _ in range(30)]
 
               content = (
                   '<ViewFlipper '
@@ -281,7 +300,7 @@ jobs:
                 android:padding="9dp"
                 android:background="@drawable/bg">
 
-                <!-- Protected top header and spinning icon -->
+                <!-- Protected top area: icon and title -->
                 <LinearLayout
                   android:layout_width="match_parent"
                   android:layout_height="25dp"
@@ -317,7 +336,7 @@ jobs:
                     android:textSize="13sp" />
                 </LinearLayout>
 
-                <!-- Pop-ups are restricted to this middle area only -->
+                <!-- All terminal windows stay inside this middle area -->
                 <FrameLayout
                   android:layout_width="match_parent"
                   android:layout_height="0dp"
@@ -369,7 +388,6 @@ jobs:
 
               Path("app/src/main/res/layout/widget.xml").write_text(layout)
 
-              # Pop-up terminal windows stay dark and opaque.
               Path("app/src/main/res/drawable/terminal_panel.xml").write_text(
                   f'''<shape {ns} android:shape="rectangle">
                     <solid android:color="#F5020804"/>
@@ -400,6 +418,7 @@ jobs:
 
               kotlin = r'''
               package com.example.hackerwidget
+
               import android.app.*
               import android.appwidget.*
               import android.content.*
@@ -416,6 +435,7 @@ jobs:
                           "cw_cache",
                           Context.MODE_PRIVATE
                       )
+
                       val border = prefs.getBoolean("border_term", true)
                       val gear = prefs.getBoolean("show_gear", true)
 
@@ -476,7 +496,8 @@ jobs:
                   "app/src/main/java/com/example/hackerwidget/HackerWidgetProvider.kt"
               ).write_text(textwrap.dedent(kotlin))
 
-              print("Building Matrix widget...")
+              print("Matrix widget files generated.")
+
               subprocess.run(
                   ["bash", "-e", "-o", "pipefail", "-c", marker + suffix],
                   check=True
@@ -485,9 +506,9 @@ jobs:
               found_build = True
 
           if not found_build:
-              raise SystemExit("ERROR: Could not locate original Gradle build command")
+              raise SystemExit("ERROR: Original Gradle build command was not found")
 
-          print("Matrix widget build completed.")
+          print("Build step completed.")
           PY
 
       - name: Verify APK
