@@ -194,8 +194,8 @@ jobs:
           """)
 
           # ------------------------------------------------
-          # 5. Make an overlay over the existing terminal area
-          #    The original six-console ViewFlipper is preserved.
+          # 5. Overlay over the existing terminal area
+          #    Original six-console ViewFlipper is preserved.
           # ------------------------------------------------
 
           flipper = None
@@ -396,7 +396,7 @@ jobs:
 
           # ------------------------------------------------
           # 8. Keep clock tap as an alarm shortcut.
-          #    Keep the existing clock/weather sync tap too.
+          #    Preserve the existing clock/weather sync tap.
           # ------------------------------------------------
 
           weather = Path(
@@ -418,10 +418,14 @@ jobs:
               "PendingIntent.FLAG_IMMUTABLE));"
           )
 
+          alarm_marker = "v.setOnClickPendingIntent(R.id.w_time,"
+
           if sync_marker not in weather_code:
               raise SystemExit("Clock/weather sync handler was not found.")
 
-          if "R.id.w_time" not in weather_code:
+          # Check for the actual click handler, not just R.id.w_time.
+          # R.id.w_time may already occur elsewhere in the Kotlin file.
+          if alarm_marker not in weather_code:
               weather_code = weather_code.replace(
                   sync_marker,
                   sync_marker + alarm_click,
