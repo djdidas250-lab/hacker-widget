@@ -1,5 +1,5 @@
 
-name: Matrix Dual Widgets - Random Terminal Windows
+name: Matrix Dual Widgets - Glass Widget
 on: [push, workflow_dispatch]
 jobs:
   build:
@@ -7,16 +7,19 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
       - name: Set up Java
         uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: temurin
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.x'
-      - name: Generate app, add random animated terminal windows, and build
+
+      - name: Generate app, glass background, and animated terminal windows
         shell: bash
         run: |
           set -euo pipefail
@@ -28,7 +31,7 @@ jobs:
           base_url = "https://raw.githubusercontent.com/djdidas250-lab/hacker-widget/0ad3901/.github/workflows/build.yml"
           marker = "gradle wrapper --gradle-version 8.5 && chmod +x gradlew && ./gradlew assembleDebug --no-daemon"
 
-          print("Downloading the original verified app source...")
+          print("Downloading original app source...")
           raw = urllib.request.urlopen(base_url, timeout=30).read().decode("utf-8")
           base = yaml.safe_load(raw)
           steps = base["jobs"]["build"]["steps"]
@@ -45,7 +48,8 @@ jobs:
                   continue
 
               prefix, suffix = command.split(marker, 1)
-              print("Generating original clock, weather, settings, and app sources...")
+
+              print("Generating original app sources...")
               subprocess.run(["bash", "-e", "-o", "pipefail", "-c", prefix], check=True)
 
               settings = Path("settings.gradle")
@@ -61,10 +65,22 @@ jobs:
                   settings.write_text(settings_text)
 
               if "gradlePluginPortal()" not in settings.read_text():
-                  raise SystemExit("ERROR: Could not add Gradle Plugin Portal to pluginManagement repositories")
+                  raise SystemExit("ERROR: Could not add Gradle Plugin Portal")
 
-              print("Gradle Plugin Portal enabled for Kotlin plugin resolution.")
+              print("Gradle Plugin Portal enabled.")
 
+              # Make the OUTER widget background translucent.
+              # Keep the original green border layers intact.
+              for drawable in ["bg.xml", "bg_off.xml"]:
+                  path = Path("app/src/main/res/drawable") / drawable
+                  if not path.exists():
+                      raise SystemExit(f"ERROR: Missing {drawable}")
+                  content = path.read_text()
+                  if "#FA010401" not in content:
+                      raise SystemExit(f"ERROR: Original background color not found in {drawable}")
+                  path.write_text(content.replace("#FA010401", "#C0010401"))
+
+              # Keep the alarm shortcut.
               manifest = Path("app/src/main/AndroidManifest.xml")
               mx = manifest.read_text()
               perm = '<uses-permission android:name="com.android.alarm.permission.SET_ALARM"/>'
@@ -74,6 +90,7 @@ jobs:
 
               provider = Path("app/src/main/java/com/example/hackerwidget/ClockWeatherProvider.kt")
               src = provider.read_text()
+
               anchor = 'private fun tapPi(c:Context):PendingIntent{'
               helper = ('private fun alarmPi(c:Context):PendingIntent{' \
                 'val i=Intent(android.provider.AlarmClock.ACTION_SET_ALARM).apply{' \
@@ -87,7 +104,7 @@ jobs:
 
               if 'private fun alarmPi(c:Context)' not in src:
                   if anchor not in src:
-                      raise SystemExit("ERROR: Could not find clock alarm insertion point")
+                      raise SystemExit("ERROR: Could not find alarm insertion point")
                   src = src.replace(anchor, helper + anchor, 1)
 
               old_click = ('v.setOnClickPendingIntent(R.id.gear_w,cfgPi(c));'
@@ -105,7 +122,7 @@ jobs:
 
               ns = 'xmlns:android="http://schemas.android.com/apk/res/android"'
 
-              def panel(title, body, gravity, margin):
+              def panel(title, body, gravity):
                   return f'''<FrameLayout android:layout_width="match_parent" android:layout_height="match_parent" android:clipChildren="true" android:clipToPadding="true">
                     <LinearLayout android:layout_width="124dp" android:layout_height="wrap_content" android:layout_gravity="{gravity}" android:layout_margin="6dp" android:orientation="vertical" android:padding="3dp" android:background="@drawable/terminal_panel">
                       <TextView android:layout_width="match_parent" android:layout_height="15dp" android:gravity="center_vertical" android:paddingStart="4dp" android:background="@drawable/terminal_header" android:text="{title}" android:textColor="#001A08" android:textStyle="bold" android:textSize="7sp" android:fontFamily="monospace" />
@@ -114,46 +131,61 @@ jobs:
                     </LinearLayout>
                   </FrameLayout>'''
 
-              def flipper(fid, interval, margin, groups, repeats):
-                  positions = ['top|start', 'top|end', 'center', 'bottom|start', 'bottom|end', 'center_vertical|start', 'center_vertical|end']
-                  children = ['<FrameLayout android:layout_width="match_parent" android:layout_height="match_parent" android:clipChildren="true" android:clipToPadding="true" />']
+              def flipper(fid, interval, groups, repeats):
+                  positions = [
+                      'top|start', 'top|end', 'center',
+                      'bottom|start', 'bottom|end',
+                      'center_vertical|start', 'center_vertical|end'
+                  ]
+                  children = [
+                      '<FrameLayout android:layout_width="match_parent" android:layout_height="match_parent" android:clipChildren="true" android:clipToPadding="true" />'
+                  ]
 
                   for title, body in groups:
                       gravity = random.choice(positions)
                       for _ in range(repeats):
-                          children.append(panel(title, body, gravity, margin))
-                      children.append('<FrameLayout android:layout_width="match_parent" android:layout_height="match_parent" android:clipChildren="true" android:clipToPadding="true" />')
+                          children.append(panel(title, body, gravity))
+                      children.append(
+                          '<FrameLayout android:layout_width="match_parent" android:layout_height="match_parent" android:clipChildren="true" android:clipToPadding="true" />'
+                      )
 
-                  return (f'<ViewFlipper android:id="@+id/{fid}" android:layout_width="match_parent" '
-                          f'android:layout_height="match_parent" android:autoStart="true" android:clipChildren="true" android:clipToPadding="true" '
-                          f'android:flipInterval="{interval}" android:inAnimation="@anim/panel_in" '
-                          f'android:outAnimation="@anim/panel_out">' + ''.join(children) + '</ViewFlipper>')
+                  return (
+                      f'<ViewFlipper android:id="@+id/{fid}" '
+                      f'android:layout_width="match_parent" '
+                      f'android:layout_height="match_parent" '
+                      f'android:autoStart="true" android:clipChildren="true" '
+                      f'android:clipToPadding="true" android:flipInterval="{interval}" '
+                      f'android:inAnimation="@anim/panel_in" '
+                      f'android:outAnimation="@anim/panel_out">'
+                      + ''.join(children) +
+                      '</ViewFlipper>'
+                  )
 
               short_entries = [
-                ("AUTH / SCAN", "[+] scanning ports\\nnode: 10.0.4.21\\ntrace route: active"),
-                ("KERNEL TASK", "injecting module...\\nchecksum verified\\nprogress sequence: 42%"),
+                  ("AUTH / SCAN", "[+] scanning ports\\nnode: 10.0.4.21\\ntrace route: active"),
+                  ("KERNEL TASK", "injecting module...\\nchecksum verified\\nprogress sequence: 42%"),
               ]
 
               medium_entries = [
-                ("FIREWALL / BYPASS", "root@matrix:~# bypass\\n[OK] handshake accepted\\npacket stream active"),
-                ("MEMORY DUMP", "0x7F2A -> 0x91BC\\nstack verified\\nreading sectors..."),
-                ("ENCRYPTION", "AES session running\\nkey exchange accepted\\nrotating cipher..."),
+                  ("FIREWALL / BYPASS", "root@matrix:~# bypass\\n[OK] handshake accepted\\npacket stream active"),
+                  ("MEMORY DUMP", "0x7F2A -> 0x91BC\\nstack verified\\nreading sectors..."),
+                  ("ENCRYPTION", "AES session running\\nkey exchange accepted\\nrotating cipher..."),
               ]
 
               long_entries = [
-                ("SYSTEM / OVERRIDE", "root@matrix:~# ./override\\n[+] access granted\\nloading kernel payload..."),
-                ("DATA / EXTRACT", "sector 04: reading\\nsector 05: verified\\ntransfer in progress..."),
-                ("NETWORK / TRACE", "route mapped: 8 hops\\nproxy chain active\\nconnection stable"),
+                  ("SYSTEM / OVERRIDE", "root@matrix:~# ./override\\n[+] access granted\\nloading kernel payload..."),
+                  ("DATA / EXTRACT", "sector 04: reading\\nsector 05: verified\\ntransfer in progress..."),
+                  ("NETWORK / TRACE", "route mapped: 8 hops\\nproxy chain active\\nconnection stable"),
               ]
 
-              content = flipper('short_windows', 2200, '3dp', short_entries, 3)
-              content += flipper('medium_windows', 2450, '0dp', medium_entries, 5)
-              content += flipper('long_windows', 2850, '3dp', long_entries, 8)
+              content = flipper('short_windows', 2200, short_entries, 3)
+              content += flipper('medium_windows', 2450, medium_entries, 5)
+              content += flipper('long_windows', 2850, long_entries, 8)
 
               layout = f'''<?xml version="1.0" encoding="utf-8"?>
               <LinearLayout {ns} android:id="@+id/root" android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:padding="9dp" android:background="@drawable/bg">
-                <LinearLayout android:layout_width="match_parent" android:layout_height="23dp" android:gravity="center_vertical" android:orientation="horizontal">
-                  <ProgressBar android:layout_width="17dp" android:layout_height="17dp" android:layout_marginStart="6dp" android:layout_marginTop="0dp" android:indeterminate="true" android:indeterminateDrawable="@drawable/ring" />
+                <LinearLayout android:layout_width="match_parent" android:layout_height="25dp" android:gravity="center_vertical" android:orientation="horizontal">
+                  <ProgressBar android:layout_width="17dp" android:layout_height="17dp" android:layout_marginStart="6dp" android:layout_marginTop="3dp" android:indeterminate="true" android:indeterminateDrawable="@drawable/ring" />
                   <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginStart="6dp" android:text="MATRIX // LIVE PROCESSES" android:textColor="#FFFFFF" android:textStyle="bold" android:textSize="9sp" android:fontFamily="monospace" />
                   <TextView android:id="@+id/gear_t" android:layout_width="wrap_content" android:layout_height="wrap_content" android:paddingStart="5dp" android:text="⚙" android:textColor="#8800FF41" android:textSize="13sp" />
                 </LinearLayout>
@@ -169,13 +201,22 @@ jobs:
 
               Path('app/src/main/res/layout/widget.xml').write_text(layout)
 
-              Path('app/src/main/res/drawable/terminal_panel.xml').write_text(f'''<shape {ns} android:shape="rectangle"><gradient android:angle="90" android:startColor="#C00B2414" android:endColor="#B8020804"/><stroke android:width="1dp" android:color="#00FF41"/><corners android:radius="2dp"/></shape>''')
+              # Pop-up terminal windows remain opaque.
+              Path('app/src/main/res/drawable/terminal_panel.xml').write_text(
+                  f'''<shape {ns} android:shape="rectangle"><solid android:color="#F5020804"/><stroke android:width="1dp" android:color="#00FF41"/><corners android:radius="2dp"/></shape>'''
+              )
 
-              Path('app/src/main/res/drawable/terminal_header.xml').write_text(f'''<shape {ns} android:shape="rectangle"><solid android:color="#E8FFF0"/></shape>''')
+              Path('app/src/main/res/drawable/terminal_header.xml').write_text(
+                  f'''<shape {ns} android:shape="rectangle"><solid android:color="#E8FFF0"/></shape>'''
+              )
 
-              Path('app/src/main/res/anim/panel_in.xml').write_text(f'''<set {ns} android:duration="320"><alpha android:fromAlpha="0.0" android:toAlpha="1.0"/><translate android:fromYDelta="8%" android:toYDelta="0%"/></set>''')
+              Path('app/src/main/res/anim/panel_in.xml').write_text(
+                  f'''<set {ns} android:duration="320"><alpha android:fromAlpha="0.0" android:toAlpha="1.0"/><translate android:fromYDelta="8%" android:toYDelta="0%"/></set>'''
+              )
 
-              Path('app/src/main/res/anim/panel_out.xml').write_text(f'''<set {ns} android:duration="260"><alpha android:fromAlpha="1.0" android:toAlpha="0.0"/><translate android:fromYDelta="0%" android:toYDelta="-5%"/></set>''')
+              Path('app/src/main/res/anim/panel_out.xml').write_text(
+                  f'''<set {ns} android:duration="260"><alpha android:fromAlpha="1.0" android:toAlpha="0.0"/><translate android:fromYDelta="0%" android:toYDelta="-5%"/></set>'''
+              )
 
               kotlin = r'''
               package com.example.hackerwidget
@@ -217,21 +258,25 @@ jobs:
               }
               '''
 
-              Path('app/src/main/java/com/example/hackerwidget/HackerWidgetProvider.kt').write_text(textwrap.dedent(kotlin))
+              Path('app/src/main/java/com/example/hackerwidget/HackerWidgetProvider.kt').write_text(
+                  textwrap.dedent(kotlin)
+              )
 
-              print("Random independent terminal panels installed. Building APK...")
+              print("Building Matrix widget...")
               subprocess.run(["bash", "-e", "-o", "pipefail", "-c", marker + suffix], check=True)
               found_build = True
 
           if not found_build:
-              raise SystemExit("ERROR: Could not locate the original Gradle build command")
+              raise SystemExit("ERROR: Could not locate original Gradle build command")
 
-          print("Matrix multi-window APK build completed.")
+          print("Matrix widget build completed.")
           PY
+
       - name: Verify APK
         run: |
           test -s app/build/outputs/apk/debug/app-debug.apk
           unzip -t app/build/outputs/apk/debug/app-debug.apk
+
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
