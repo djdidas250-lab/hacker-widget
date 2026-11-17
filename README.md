@@ -1,6 +1,6 @@
 Hacker Widgets – Matrix Dual Widgets
 
-"APK Downloads" (https://img.shields.io/github/downloads/djdidas250-lab/hacker-widget/v1.0.0/matrix%20widgets.apk?label=APK%20Downloads&style=for-the-badge)
+"APK Downloads" https://img.shields.io/github/downloads/djdidas250-lab/hacker-widget/v1.0.0/matrix%20widgets.apk?label=APK%20Downloads&style=for-the-badge
 
 A futuristic Matrix-inspired Android home screen experience — with everyday functionality built in.
 
