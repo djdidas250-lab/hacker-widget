@@ -71,8 +71,7 @@ jobs:
 
           ns = 'xmlns:android="http://schemas.android.com/apk/res/android"'
 
-          # Preserve the existing border styling and set only the
-          # widget background fill to 75% opacity.
+          # Preserve the existing border styling and 75% opaque background.
           bg = draw_dir / "bg.xml"
           if bg.exists():
               s = bg.read_text()
@@ -397,7 +396,7 @@ jobs:
           layers = [layer(i, intervals[i]) for i in range(5)]
           random.shuffle(layers)
 
-          # Header and footer remain in their existing positions.
+          # Header opens the phone's Android Settings app.
           layout = f'''<?xml version="1.0" encoding="utf-8"?>
           <LinearLayout
             {ns}
@@ -408,6 +407,7 @@ jobs:
             android:padding="10dp"
             android:background="@drawable/bg">
             <LinearLayout
+              android:id="@+id/header"
               android:layout_width="match_parent"
               android:layout_height="32dp"
               android:gravity="center_vertical"
@@ -485,7 +485,7 @@ jobs:
 
           (layout_dir / "widget.xml").write_text(layout)
 
-          # Keep the original alarm, settings and refresh behavior.
+          # Keep the existing alarm, settings and refresh behavior.
           provider = Path(
               "app/src/main/java/com/example/hackerwidget/ClockWeatherProvider.kt"
           )
@@ -566,6 +566,24 @@ jobs:
                           ClockWeatherProvider.cfgPi(context)
                       )
 
+                      // Tapping the header opens the phone's main Settings app.
+                      val settingsIntent = Intent(
+                          android.provider.Settings.ACTION_SETTINGS
+                      )
+
+                      val settingsPendingIntent = PendingIntent.getActivity(
+                          context,
+                          id + 100000,
+                          settingsIntent,
+                          PendingIntent.FLAG_UPDATE_CURRENT or
+                              PendingIntent.FLAG_IMMUTABLE
+                      )
+
+                      views.setOnClickPendingIntent(
+                          R.id.header,
+                          settingsPendingIntent
+                      )
+
                       for (layer in 0 until 5) {
                           val viewId = when (layer) {
                               0 -> R.id.window_layer_0
@@ -620,7 +638,7 @@ jobs:
               mx = mx.replace("<application", permission + "<application", 1)
               manifest.write_text(mx)
 
-          print("Footer and translucent widget background updated.")
+          print("Header Settings shortcut and existing widget appearance ready.")
           print("Building APK...")
 
           subprocess.run(
