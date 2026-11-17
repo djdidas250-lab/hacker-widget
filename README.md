@@ -3,7 +3,7 @@ Hacker Widget – Matrix Dual Widgets
 A futuristic Android dual-widget app featuring an animated Matrix Virtual Command Hub and a Digital Clock, Date & Weather widget. Includes interactive controls, system shortcuts, and a sleek cyber-inspired design—all in one APK.
 
 <p align="center">
-  <img src="https://img.shields.io/github/downloads/djdidas250-lab/hacker-widget/total?label=APK%20Downloads&style=for-the-badge" alt="APK Downloads">
+  <img src="https://img.shields.io/github/downloads/djdidas250-lab/hacker-widget/latest/widget.apk?label=APK%20Downloads&style=for-the-badge" alt="APK Downloads">
   <img src="https://img.shields.io/github/v/release/djdidas250-lab/hacker-widget?style=for-the-badge&label=Latest%20Release" alt="Latest Release">
   <img src="https://img.shields.io/github/stars/djdidas250-lab/hacker-widget?style=for-the-badge" alt="GitHub Stars">
   <img src="https://img.shields.io/github/actions/workflow/status/djdidas250-lab/hacker-widget/build.yml?style=for-the-badge&label=Build" alt="Build Status">
@@ -42,19 +42,19 @@ A dark cyber-inspired appearance combined with bright Matrix-green terminal elem
 
 Download
 
-Get the latest official Android APK here:
+Download the latest official Android APK:
 
-"DOWNLOAD HACKER WIDGET – LATEST RELEASE" (https://github.com/djdidas250-lab/hacker-widget/releases/latest)
+"DOWNLOAD HACKER WIDGET" (https://github.com/djdidas250-lab/hacker-widget/releases/latest)
 
 Installation
 
-1. Download the latest APK from GitHub Releases.
-2. Open the downloaded APK on your Android device.
-3. Allow installation from your browser or file manager if requested.
+1. Download the APK from GitHub Releases.
+2. Open "widget.apk" on your Android device.
+3. Allow installation if Android requests permission.
 4. Complete the installation.
 5. Long-press your home screen.
 6. Open the Widgets menu.
-7. Find Hacker Widget and add your preferred widget.
+7. Find Hacker Widget and add either widget.
 
 Project Information
 
@@ -70,7 +70,7 @@ The Android APK is generated through GitHub Actions using the project's build wo
 
 Support the Project
 
-If you enjoy Hacker Widget, please consider giving the repository a ⭐ star.
+If you enjoy Hacker Widget, consider giving the repository a ⭐ star.
 
 Bug reports, suggestions, and improvements are welcome through GitHub Issues.
 
