@@ -1,71 +1,70 @@
-Hacker Widgets – Matrix Dual Widgets
+# Hacker Widget – Matrix Dual Widgets
 
-"APK Downloads" https://img.shields.io/github/downloads/djdidas250-lab/hacker-widget/v1.0.0/matrix%20widgets.apk?label=APK%20Downloads&style=for-the-badge
+![APK Downloads](https://img.shields.io/github/downloads/djdidas250-lab/hacker-widget/v1.0.0/matrix%20widgets.apk?label=APK%20Downloads&style=for-the-badge)
 
-A futuristic Matrix-inspired Android home screen experience — with everyday functionality built in.
+A futuristic Matrix-inspired Android home screen experience, combining two interactive widgets in one APK.
 
-Hacker Widget combines two interactive Android home-screen widgets in one APK:
+## What's Included
 
-- Matrix Virtual Command Hub – animated terminal windows, futuristic green styling, and interactive controls.
-- Digital Clock & Weather – a digital clock, date, weather information, and a convenient alarm shortcut.
+### 1. Matrix Virtual Command Hub
 
-Features
-
-Matrix Virtual Command Hub
-
-- Animated, randomized virtual terminal windows.
-- Futuristic Matrix-inspired green interface.
-- Multiple terminal panels and visual transitions.
+- Animated virtual terminal windows.
+- Randomized terminal panels and transitions.
+- Futuristic Matrix-inspired green styling.
 - Semi-transparent widget background.
-- Interactive refresh functionality.
+- Interactive tap-to-refresh functionality.
 - Header shortcut to Android system Settings.
 - Gear shortcut for widget configuration.
-- Live-style encrypted channel footer.
+- LIVE encrypted channel footer.
 
-Digital Clock & Weather
+### 2. Digital Clock & Weather
 
 - Digital clock display.
-- Current date display.
+- Date display.
 - Weather information.
 - Convenient alarm shortcut.
-- Widget configuration and refresh controls.
+- Widget configuration.
+- Refresh functionality.
 
-Design
+## Design
 
-Designed with a cyber-inspired aesthetic, combining Matrix-style visuals, green terminal elements, and a clean gunmetal interface.
+Hacker Widget combines futuristic cyber-inspired visuals with everyday Android functionality.
 
-Download
+Designed with Matrix-style green terminal elements, a gunmetal interface, and animated virtual command panels.
 
-Version 1.0.0
+## Download Hacker Widget
 
-- "Download the APK – Android installation file" (https://github.com/djdidas250-lab/hacker-widget/releases/download/v1.0.0/matrix%20widgets.apk)
-- "Download the ZIP package" (https://github.com/djdidas250-lab/hacker-widget/releases/download/v1.0.0/matrix%20widgets.zip)
-- "View all releases" (https://github.com/djdidas250-lab/hacker-widget/releases)
+Current release: v1.0.0
 
-Installation
+- [Download Android APK](https://github.com/djdidas250-lab/hacker-widget/releases/download/v1.0.0/matrix%20widgets.apk)
+- [Download ZIP Package](https://github.com/djdidas250-lab/hacker-widget/releases/download/v1.0.0/matrix%20widgets.zip)
+- [View All Releases](https://github.com/djdidas250-lab/hacker-widget/releases)
 
-1. Download "matrix widgets.apk" to your Android device.
+## Installation Instructions
+
+1. Download the APK file to your Android device.
 2. Open the downloaded APK.
-3. If prompted, allow installation from this source in your Android settings.
+3. Allow installation from this source if Android requests permission.
 4. Complete the installation.
-5. Press and hold an empty area of your Android home screen.
-6. Open the Widgets menu.
-7. Find Hacker Widget and add either widget to your home screen.
-8. Configure your widgets and enjoy!
+5. Press and hold an empty area on your home screen.
+6. Open the Android Widgets menu.
+7. Find Hacker Widget.
+8. Add either widget to your home screen.
+9. Configure your widget and enjoy!
 
-Project Information
+## Project Information
 
-- Project: Hacker Widget – Matrix Dual Widgets
+- Project Name: Hacker Widget – Matrix Dual Widgets
 - Platform: Android
-- Release: v1.0.0
-- Package: Two interactive home-screen widgets in one APK
-- Repository: "GitHub – Hacker Widget" (https://github.com/djdidas250-lab/hacker-widget)
+- Current Release: v1.0.0
+- Package: Two interactive widgets in one APK.
+- Repository: https://github.com/djdidas250-lab/hacker-widget
 
-Support
+## Support
 
-If you enjoy Hacker Widget, consider sharing the project and supporting its continued development.
+For questions, feedback, or suggestions, visit the GitHub repository.
 
-For questions, feedback, or suggestions, use the GitHub repository.
+Thank you for supporting Hacker Widget!
 
 ---
 
