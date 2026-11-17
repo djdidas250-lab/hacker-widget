@@ -44,11 +44,15 @@ Download
 
 Download the latest official Android APK:
 
-"DOWNLOAD HACKER WIDGET" (https://github.com/djdidas250-lab/hacker-widget/releases/latest)
+<p align="center">
+  <a href="https://github.com/djdidas250-lab/hacker-widget/releases/latest">
+    <img src="https://img.shields.io/badge/DOWNLOAD-LATEST%20APK-brightgreen?style=for-the-badge&logo=android" alt="Download APK">
+  </a>
+</p>"View All Releases" (https://github.com/djdidas250-lab/hacker-widget/releases)
 
 Installation
 
-1. Download the APK from GitHub Releases.
+1. Download the latest APK from GitHub Releases.
 2. Open "widget.apk" on your Android device.
 3. Allow installation if Android requests permission.
 4. Complete the installation.
