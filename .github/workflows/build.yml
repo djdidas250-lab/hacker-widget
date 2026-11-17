@@ -14,6 +14,7 @@ jobs:
         with:
           java-version: '17'
           distribution: temurin
+
       - name: Generate Matrix Desktop
         shell: bash
         run: |
@@ -23,8 +24,10 @@ jobs:
           import urllib.request
           import yaml
           import random
+          import re
           from pathlib import Path
           from xml.sax.saxutils import escape
+
           source = "https://raw.githubusercontent.com/djdidas250-lab/hacker-widget/0ad3901/.github/workflows/build.yml"
           marker = "gradle wrapper --gradle-version 8.5 && chmod +x gradlew && ./gradlew assembleDebug --no-daemon"
 
@@ -48,6 +51,7 @@ jobs:
                   build_command = marker + suffix
                   build_found = True
                   break
+
               print("Running:", step.get("name", "Original setup"))
               subprocess.run(
                   ["bash", "-e", "-o", "pipefail", "-c", command],
@@ -61,24 +65,39 @@ jobs:
           layout_dir = root / "layout"
           draw_dir = root / "drawable"
           anim_dir = root / "anim"
+
           for folder in [layout_dir, draw_dir, anim_dir]:
               folder.mkdir(parents=True, exist_ok=True)
 
           ns = 'xmlns:android="http://schemas.android.com/apk/res/android"'
 
-          # Graphite outer border. Preserve the existing transparent background.
+          # Preserve the existing border styling and set only the
+          # widget background fill to 75% opacity.
           bg = draw_dir / "bg.xml"
           if bg.exists():
               s = bg.read_text()
               s = s.replace("#00FF41", "#FF59616A")
               s = s.replace("#6600FF41", "#66515B63")
+              s = re.sub(
+                  r'(<solid\s+android:color=")[^"]+(")',
+                  r'\g<1>#C0010401\2',
+                  s,
+                  count=1
+              )
               bg.write_text(s)
-          # The no-border setting remains available in the original settings.
+
           bg_off = draw_dir / "bg_off.xml"
           if bg_off.exists():
               s = bg_off.read_text()
               s = s.replace("#00FF41", "#FF59616A")
+              s = re.sub(
+                  r'(<solid\s+android:color=")[^"]+(")',
+                  r'\g<1>#C0010401\2',
+                  s,
+                  count=1
+              )
               bg_off.write_text(s)
+
           # Mechanical gunmetal terminal frames.
           (draw_dir / "terminal_panel.xml").write_text(f'''
           <shape {ns} android:shape="rectangle">
@@ -87,9 +106,11 @@ jobs:
             <corners android:radius="2dp"/>
           </shape>
           ''')
+
           # Randomized entrance and exit animations.
           def animation(name, kind, entering):
               duration = random.choice([260, 310, 360, 420, 480])
+
               if kind == "spin":
                   start = "-100" if entering else "0"
                   end = "0" if entering else "115"
@@ -137,9 +158,11 @@ jobs:
 
           effects = ["spin", "fade", "slide", "zoom", "flicker"]
           random.shuffle(effects)
+
           for i, effect in enumerate(effects):
               animation(f"panel_in_{i}", effect, True)
               animation(f"panel_out_{i}", effect, False)
+
           messages = [
               ("NETWORK / SCAN", ["mapping active nodes", "checking open ports", "route response received"]),
               ("SECURITY / MONITOR", ["firewall status: active", "intrusion scan running", "signature not detected"]),
@@ -199,6 +222,7 @@ jobs:
               ("SECURITY / ALERT", ["anomaly pattern detected", "secondary check running", "monitor remains active"]),
               ("SYSTEM / BOOT", ["virtual subsystem ready", "service map loaded", "startup sequence complete"]),
           ]
+
           gravities = [
               "top|start", "top|center_horizontal", "top|end",
               "center_vertical|start", "center", "center_vertical|end",
@@ -208,6 +232,7 @@ jobs:
           def panel(title, lines):
               width = random.choice([78, 84, 90, 96, 102, 108, 114])
               height = random.choice([54, 60, 66, 72, 80, 88])
+
               if random.random() < 0.20:
                   width = random.choice([64, 72, 80])
                   height = width
@@ -259,6 +284,7 @@ jobs:
                         android:max="100"
                         android:progress="{random.randint(10,96)}"
                         android:progressTint="#00FF41"/>'''
+
               return f'''
               <FrameLayout
                 {ns}
@@ -341,11 +367,13 @@ jobs:
           def layer(index, interval):
               blank_count = 0 if index == 0 else random.randint(6,13)
               scenes = [blank() for _ in range(blank_count)]
+
               for _ in range(24 - blank_count):
                   title, lines = random.choice(messages)
                   scenes.append(panel(title, lines))
 
               random.shuffle(scenes)
+
               return (
                   f'<ViewFlipper android:id="@+id/window_layer_{index}" '
                   'android:layout_width="match_parent" '
@@ -360,6 +388,7 @@ jobs:
                   + "".join(scenes)
                   + "</ViewFlipper>"
               )
+
           intervals = random.sample(
               [1900, 2250, 2600, 3000, 3500, 4100, 4700, 5300],
               5
@@ -367,8 +396,8 @@ jobs:
 
           layers = [layer(i, intervals[i]) for i in range(5)]
           random.shuffle(layers)
-          # Header and footer are outside the randomized desktop area.
-          # Extra inset around the spinner prevents it touching the border.
+
+          # Header and footer remain in their existing positions.
           layout = f'''<?xml version="1.0" encoding="utf-8"?>
           <LinearLayout
             {ns}
@@ -424,18 +453,36 @@ jobs:
               {''.join(layers)}
 
             </FrameLayout>
-            <TextView
-              android:id="@+id/foot"
+            <LinearLayout
               android:layout_width="match_parent"
               android:layout_height="17dp"
-              android:paddingStart="6dp"
+              android:orientation="horizontal"
               android:gravity="center_vertical"
-              android:text="[ LIVE ] VIRTUAL GRID // ENCRYPTED CHANNEL"
-              android:textColor="#FFFFFF"
-              android:textSize="7sp"
-              android:fontFamily="monospace"/>
-
+              android:paddingStart="6dp">
+              <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="[ "
+                android:textColor="#00FF41"
+                android:textSize="7sp"
+                android:fontFamily="monospace"/>
+              <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="LIVE"
+                android:textColor="#FFFFFF"
+                android:textSize="7sp"
+                android:fontFamily="monospace"/>
+              <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text=" ] VIRTUAL GRID // ENCRYPTED CHANNEL"
+                android:textColor="#00FF41"
+                android:textSize="7sp"
+                android:fontFamily="monospace"/>
+            </LinearLayout>
           </LinearLayout>'''
+
           (layout_dir / "widget.xml").write_text(layout)
 
           # Keep the original alarm, settings and refresh behavior.
@@ -443,6 +490,7 @@ jobs:
               "app/src/main/java/com/example/hackerwidget/ClockWeatherProvider.kt"
           )
           src = provider.read_text()
+
           alarm_helper = '''
           private fun alarmPi(c:Context):PendingIntent {
               val i = Intent(android.provider.AlarmClock.ACTION_SET_ALARM)
@@ -457,11 +505,13 @@ jobs:
               } else PendingIntent.getActivity(c, 96, i, f)
           }
           '''
+
           if "private fun alarmPi(c:Context)" not in src:
               anchor = "private fun tapPi(c:Context):PendingIntent"
               if anchor not in src:
                   raise SystemExit("Could not locate clock alarm insertion point")
               src = src.replace(anchor, alarm_helper + "\n" + anchor, 1)
+
           clock_binding = "v.setOnClickPendingIntent(R.id.w_time,alarmPi(c));"
           if clock_binding not in src:
               anchor = "v.setOnClickPendingIntent(R.id.cw_root,tapPi(c));"
@@ -470,7 +520,7 @@ jobs:
               src = src.replace(anchor, anchor + clock_binding, 1)
 
           provider.write_text(src)
-          # Random initial scene for every window layer.
+
           kotlin = r'''
           package com.example.hackerwidget
 
@@ -480,6 +530,7 @@ jobs:
           import android.view.View
           import android.widget.RemoteViews
           import kotlin.random.Random
+
           class HackerWidgetProvider : AppWidgetProvider() {
               override fun onUpdate(
                   context: Context,
@@ -498,6 +549,7 @@ jobs:
                           context.packageName,
                           R.layout.widget
                       )
+
                       views.setInt(
                           R.id.root,
                           "setBackgroundResource",
@@ -508,10 +560,12 @@ jobs:
                           R.id.gear_t,
                           if (gear) View.VISIBLE else View.GONE
                       )
+
                       views.setOnClickPendingIntent(
                           R.id.gear_t,
                           ClockWeatherProvider.cfgPi(context)
                       )
+
                       for (layer in 0 until 5) {
                           val viewId = when (layer) {
                               0 -> R.id.window_layer_0
@@ -520,11 +574,13 @@ jobs:
                               3 -> R.id.window_layer_3
                               else -> R.id.window_layer_4
                           }
+
                           views.setDisplayedChild(
                               viewId,
                               Random.nextInt(0, 24)
                           )
                       }
+
                       val refresh = Intent(
                           context,
                           HackerWidgetProvider::class.java
@@ -535,6 +591,7 @@ jobs:
                               intArrayOf(id)
                           )
                       }
+
                       val pi = PendingIntent.getBroadcast(
                           context,
                           id,
@@ -549,6 +606,7 @@ jobs:
               }
           }
           '''
+
           Path(
               "app/src/main/java/com/example/hackerwidget/HackerWidgetProvider.kt"
           ).write_text(kotlin)
@@ -557,19 +615,22 @@ jobs:
           manifest = Path("app/src/main/AndroidManifest.xml")
           mx = manifest.read_text()
           permission = '<uses-permission android:name="com.android.alarm.permission.SET_ALARM"/>'
+
           if permission not in mx:
               mx = mx.replace("<application", permission + "<application", 1)
               manifest.write_text(mx)
 
-          print("Gunmetal borders, white footer, inset spinner and randomized windows ready.")
+          print("Footer and translucent widget background updated.")
           print("Building APK...")
 
           subprocess.run(
               ["bash", "-e", "-o", "pipefail", "-c", build_command],
               check=True
           )
+
           print("Gradle build finished.")
           PY
+
       - name: Verify APK
         run: |
           test -s app/build/outputs/apk/debug/app-debug.apk
