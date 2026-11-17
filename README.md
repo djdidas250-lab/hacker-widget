@@ -1,6 +1,7 @@
+
 # Hacker Widget – Matrix Dual Widgets
 
-![APK Downloads](https://img.shields.io/github/downloads/djdidas250-lab/hacker-widget/v1.0.0/matrix%20widgets.apk?label=APK%20Downloads&style=for-the-badge)
+[![APK Downloads](https://img.shields.io/github/downloads/djdidas250-lab/hacker-widget/v1.0.0/matrix%20widgets.apk?label=APK%20Downloads&style=for-the-badge)](https://github.com/djdidas250-lab/hacker-widget/releases/tag/v1.0.0)
 
 A futuristic Matrix-inspired Android home screen experience, combining two interactive widgets in one APK.
 
@@ -34,7 +35,7 @@ Designed with Matrix-style green terminal elements, a gunmetal interface, and an
 
 ## Download Hacker Widget
 
-Current release: v1.0.0
+**Current release: v1.0.0**
 
 - [Download Android APK](https://github.com/djdidas250-lab/hacker-widget/releases/download/v1.0.0/matrix%20widgets.apk)
 - [Download ZIP Package](https://github.com/djdidas250-lab/hacker-widget/releases/download/v1.0.0/matrix%20widgets.zip)
@@ -54,11 +55,11 @@ Current release: v1.0.0
 
 ## Project Information
 
-- Project Name: Hacker Widget – Matrix Dual Widgets
-- Platform: Android
-- Current Release: v1.0.0
-- Package: Two interactive widgets in one APK.
-- Repository: https://github.com/djdidas250-lab/hacker-widget
+- **Project Name:** Hacker Widget – Matrix Dual Widgets
+- **Platform:** Android
+- **Current Release:** v1.0.0
+- **Package:** Two interactive widgets in one APK
+- **Repository:** https://github.com/djdidas250-lab/hacker-widget
 
 ## Support
 
@@ -68,4 +69,4 @@ Thank you for supporting Hacker Widget!
 
 ---
 
-Your Android home screen. Your virtual command environment.
+**Your Android home screen. Your virtual command environment.**
